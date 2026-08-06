@@ -1,4 +1,5 @@
 .superpowers/
+.private/
 outputs/
 .env
 .env.*
@@ -8,4 +9,3 @@ miniprogram_npm/
 dist/
 coverage/
 *.log
-
