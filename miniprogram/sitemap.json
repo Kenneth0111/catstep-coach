@@ -1,0 +1,9 @@
+{
+  "desc": "猫步计划页面索引配置",
+  "rules": [
+    {
+      "action": "allow",
+      "page": "pages/today/index"
+    }
+  ]
+}

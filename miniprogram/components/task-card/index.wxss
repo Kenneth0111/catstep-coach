@@ -1,0 +1,62 @@
+:host {
+  display: block;
+}
+
+.task-card {
+  padding: 32rpx;
+  border: 2rpx solid #d6cdb9;
+  border-radius: 20rpx;
+  background: #fffaf0;
+}
+
+.task-card--in_progress {
+  border-color: #356f63;
+}
+
+.task-card__body {
+  display: flex;
+  flex-direction: column;
+}
+
+.task-card__title {
+  color: #3f3a31;
+  font-size: 34rpx;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.task-card__meta {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12rpx;
+  color: #625c52;
+  font-size: 28rpx;
+}
+
+.task-card__status {
+  color: #356f63;
+  font-weight: 600;
+}
+
+.task-card__button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin-top: 24rpx;
+  border-radius: 12rpx;
+  background: #356f63;
+  color: #f7f0df;
+  font-size: 32rpx;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.task-card__button::after {
+  border: 0;
+}
+
+.task-card__button--pressed {
+  background: #2d5e54;
+  transform: translateY(2rpx);
+}

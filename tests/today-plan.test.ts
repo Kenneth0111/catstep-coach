@@ -41,6 +41,27 @@ describe('selectCurrentTask', () => {
       ),
     ).toBeNull();
   });
+
+  it('prefers an in-progress task when priority is tied', () => {
+    const tiedTasks: TodayTask[] = [
+      {
+        id: 'pending',
+        title: '准备下一步',
+        estimatedMinutes: 20,
+        status: 'pending',
+        priority: 1,
+      },
+      {
+        id: 'started',
+        title: '继续当前任务',
+        estimatedMinutes: 30,
+        status: 'in_progress',
+        priority: 1,
+      },
+    ];
+
+    expect(selectCurrentTask(tiedTasks)?.id).toBe('started');
+  });
 });
 
 describe('summarizePlan', () => {

@@ -13,13 +13,23 @@ export interface PlanSummary {
   remainingMinutes: number;
 }
 
+const statusRank: Record<TaskStatus, number> = {
+  in_progress: 0,
+  pending: 1,
+  completed: 2,
+};
+
 export function selectCurrentTask(
   tasks: readonly TodayTask[],
 ): TodayTask | null {
   return (
     [...tasks]
       .filter((task) => task.status !== 'completed')
-      .sort((left, right) => left.priority - right.priority)[0] ?? null
+      .sort(
+        (left, right) =>
+          left.priority - right.priority ||
+          statusRank[left.status] - statusRank[right.status],
+      )[0] ?? null
   );
 }
 

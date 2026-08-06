@@ -1,0 +1,11 @@
+{
+  "pages": ["pages/today/index"],
+  "window": {
+    "navigationBarBackgroundColor": "#F7F0DF",
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "猫步计划",
+    "backgroundColor": "#F7F0DF",
+    "backgroundTextStyle": "dark"
+  },
+  "sitemapLocation": "sitemap.json"
+}
