@@ -1,0 +1,11 @@
+.superpowers/
+outputs/
+.env
+.env.*
+!.env.example
+node_modules/
+miniprogram_npm/
+dist/
+coverage/
+*.log
+
