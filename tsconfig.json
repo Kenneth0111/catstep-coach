@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "target": "ES2022",
+    "types": ["miniprogram-api-typings", "node", "vitest/globals"]
+  },
+  "include": [
+    "miniprogram/**/*.ts",
+    "cloudfunctions/**/*.ts",
+    "tests/**/*.ts",
+    "vitest.config.ts"
+  ]
+}
