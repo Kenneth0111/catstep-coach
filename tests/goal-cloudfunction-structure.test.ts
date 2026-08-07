@@ -8,7 +8,7 @@ const requiredFiles = [
   'index.ts',
   'package.json',
   'prompt.ts',
-  'tokenhub-provider.ts',
+  '../shared/tokenhub-provider.ts',
   'tsconfig.json',
 ];
 

@@ -56,7 +56,8 @@ AI 能力拆分为 `clarifyGoal`、`generateDailyPlan`、`resizeTask` 和 `gener
 - [x] CloudBase Profile 初始化服务与身份边界
 - [ ] Today 页面与 CloudBase 持久化集成
 - [x] AIProvider、目标澄清、每日计划校验与规则降级核心
-- [ ] 目标澄清 UI、真实 TokenHub 连通验证与计划持久化
+- [x] 目标澄清 UI、目标确认持久化与首份计划预览
+- [ ] 真实 TokenHub / CloudBase 开发环境连通验证
 - [ ] 目标、执行、复盘和成长的完整 UI
 - [ ] 自动化端到端测试、完整真机验收与体验版部署
 
@@ -65,6 +66,8 @@ AI 能力拆分为 `clarifyGoal`、`generateDailyPlan`、`resizeTask` 和 `gener
 - [本地开发指南](docs/development.md)
 - [猫步计划微信小程序 MVP：产品需求与技术设计](docs/superpowers/specs/2026-08-06-catstep-mini-program-design.md)
 - [Day 1 Foundation 实施计划](docs/superpowers/plans/2026-08-06-day1-foundation.md)
+- [Day 2 Completion 设计](docs/superpowers/specs/2026-08-07-day2-completion-design.md)
+- [Day 2 Completion 实施计划](docs/superpowers/plans/2026-08-07-day2-completion.md)
 
 ## MVP 验收重点
 
@@ -83,4 +86,4 @@ AI 能力拆分为 `clarifyGoal`、`generateDailyPlan`、`resizeTask` 和 `gener
 
 ## 仓库说明
 
-Day 1 工程基础和 Day 2 的服务端 AI 核心已经完成自动测试：仓库可以运行原生微信小程序 Today 页面，包含可测试的 Profile 身份边界、TokenHub 适配边界、目标澄清与每日计划降级逻辑。目标澄清 UI、真实模型连通、页面持久化、完整产品闭环和发布部署仍在后续计划中。模型凭证与环境配置只保存在本地或云端，不会提交到 Git。
+Day 1 工程基础和 Day 2 的目标到首份计划闭环已经完成自动测试：仓库包含原生目标引导页、幂等目标持久化、按微信身份隔离的计划生成、TokenHub 适配边界和规则降级。真实模型与 CloudBase 开发环境连通、Today 计划持久化、完整执行闭环和发布部署仍待后续验收。模型凭证与环境配置只保存在本地或云端，不会提交到 Git。
