@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "猫步计划",
+  "usingComponents": {
+    "task-card": "/components/task-card/index"
+  }
+}

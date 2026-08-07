@@ -1,0 +1,32 @@
+<view class="today-page">
+  <view class="intro">
+    <text class="eyebrow">今日计划</text>
+    <text class="title">慢一点，也是在向前走</text>
+    <text class="summary">还剩 {{summary.remainingCount}} 项，约 {{summary.remainingMinutes}} 分钟</text>
+  </view>
+
+  <view class="section" wx:if="{{currentTask}}">
+    <text class="section-label">现在开始</text>
+    <task-card
+      task="{{currentTask}}"
+      primary="{{true}}"
+      bind:starttask="onStartTask"
+    />
+  </view>
+
+  <view class="empty-state" wx:else>
+    <text class="empty-title">今天的脚步都完成了</text>
+    <text>先休息一下，明天再继续。</text>
+  </view>
+
+  <view class="section" wx:if="{{nextTasks.length}}">
+    <text class="section-label">接下来</text>
+    <view class="task-list">
+      <task-card
+        wx:for="{{nextTasks}}"
+        wx:key="id"
+        task="{{item}}"
+      />
+    </view>
+  </view>
+</view>

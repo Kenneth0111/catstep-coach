@@ -1,0 +1,17 @@
+<view class="task-card task-card--{{task.status}}">
+  <view class="task-card__body">
+    <text class="task-card__title">{{task.title}}</text>
+    <view class="task-card__meta">
+      <text>{{task.estimatedMinutes}} 分钟</text>
+      <text wx:if="{{task.status === 'in_progress'}}" class="task-card__status">进行中</text>
+      <text wx:else class="task-card__status">待开始</text>
+    </view>
+  </view>
+
+  <button
+    wx:if="{{primary}}"
+    class="task-card__button"
+    hover-class="task-card__button--pressed"
+    bindtap="onStart"
+  >开始这一小步</button>
+</view>

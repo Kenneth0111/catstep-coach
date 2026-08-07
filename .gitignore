@@ -10,3 +10,5 @@ miniprogram_npm/
 dist/
 coverage/
 *.log
+project.private.config.json
+.npm-cache/
