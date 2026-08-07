@@ -73,7 +73,31 @@ describe('plan.generate handler', () => {
       ok: false,
       code: 'MISCONFIGURED',
     });
-    expect(deps.createRepository).not.toHaveBeenCalled();
+    expect(deps.createRepository).toHaveBeenCalledTimes(1);
+    expect(deps.createProvider).not.toHaveBeenCalled();
+  });
+
+  it('rejects malformed input before reporting missing configuration', async () => {
+    const deps = dependencies({ openid: 'user-1', model: 'hy3' });
+
+    await expect(handlePlanGenerate({}, {}, deps)).resolves.toEqual({
+      ok: false,
+      code: 'INVALID_CONTEXT',
+    });
+    expect(deps.createProvider).not.toHaveBeenCalled();
+  });
+
+  it('rejects foreign goals before reporting missing configuration', async () => {
+    const deps = dependencies({
+      openid: 'user-1',
+      model: 'hy3',
+      repository: { async findActiveByIds() { return []; } },
+    });
+
+    await expect(handlePlanGenerate(event, {}, deps)).resolves.toEqual({
+      ok: false,
+      code: 'INVALID_CONTEXT',
+    });
     expect(deps.createProvider).not.toHaveBeenCalled();
   });
 
