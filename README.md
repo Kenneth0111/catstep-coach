@@ -50,10 +50,20 @@ AI 能力拆分为 `clarifyGoal`、`generateDailyPlan`、`resizeTask` 和 `gener
 - [x] 技术架构、数据模型与云函数接口
 - [x] AI 输出契约、可靠性、安全与成本策略
 - [x] 测试、AI 评测与发布标准
-- [ ] 微信小程序与 CloudBase 工程实现
-- [ ] 自动测试、真机验收与体验版发布
+- [x] 原生微信小程序与 TypeScript 工程骨架
+- [x] Today 页面、任务卡片与手绘暖色视觉基础
+- [x] 确定性的任务选择、排序和计划汇总规则
+- [x] CloudBase Profile 初始化服务与身份边界
+- [ ] Today 页面与 CloudBase 持久化集成
+- [ ] AI 目标澄清、每日计划与规则降级
+- [ ] 目标、执行、复盘和成长的完整 UI
+- [ ] 自动化端到端测试、完整真机验收与体验版部署
 
-完整设计文档：[猫步计划微信小程序 MVP：产品需求与技术设计](docs/superpowers/specs/2026-08-06-catstep-mini-program-design.md)
+## 文档
+
+- [本地开发指南](docs/development.md)
+- [猫步计划微信小程序 MVP：产品需求与技术设计](docs/superpowers/specs/2026-08-06-catstep-mini-program-design.md)
+- [Day 1 Foundation 实施计划](docs/superpowers/plans/2026-08-06-day1-foundation.md)
 
 ## MVP 验收重点
 
@@ -72,5 +82,4 @@ AI 能力拆分为 `clarifyGoal`、`generateDailyPlan`、`resizeTask` 和 `gener
 
 ## 仓库说明
 
-当前仓库处于设计完成、工程开发即将启动阶段。模型凭证与环境配置只保存在本地或云端，不会提交到 Git。
-
+Day 1 工程基础已经完成并通过自动测试：仓库可以运行原生微信小程序 Today 页面，并包含可测试的 Profile 初始化云函数边界。AI 工作流、页面持久化、完整产品闭环和发布部署仍在后续计划中。模型凭证与环境配置只保存在本地或云端，不会提交到 Git。
