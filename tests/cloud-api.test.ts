@@ -56,7 +56,23 @@ describe('Mini Program CloudBase API boundary', () => {
     const caller = vi.fn(async () => ({
       result: {
         ok: true,
-        result: { source: 'fallback', plan: { summary: '先走一步', tasks: [] } },
+        result: {
+          source: 'fallback',
+          plan: {
+            summary: '先走一步',
+            tasks: [
+              {
+                title: '写下下一步',
+                action: '写下一条具体行动',
+                estimatedMinutes: 15,
+                doneCriteria: '写下一条行动',
+                goalId: 'goal-1',
+                reason: '先建立起点',
+                difficulty: 'easy',
+              },
+            ],
+          },
+        },
       },
     })) satisfies CloudFunctionCaller;
 
@@ -96,4 +112,77 @@ describe('Mini Program CloudBase API boundary', () => {
       ).rejects.toEqual(new CloudApiError('INTERNAL_ERROR'));
     },
   );
+
+  it.each([
+    { source: 'ai', step: {} },
+    {
+      source: 'unknown',
+      step: {
+        kind: 'question',
+        field: 'deadline',
+        question: '何时完成？',
+      },
+    },
+    {
+      source: 'ai',
+      step: { kind: 'question', field: 'deadline', question: '' },
+    },
+  ])('rejects malformed nested goal result: %j', async (result) => {
+    const caller: CloudFunctionCaller = async () => ({
+      result: { ok: true, result },
+    });
+
+    await expect(
+      requestGoalNextStep(
+        { type: 'study', title: '学习', answers: [] },
+        caller,
+      ),
+    ).rejects.toEqual(new CloudApiError('INTERNAL_ERROR'));
+  });
+
+  it.each([
+    { source: 'ai', plan: { summary: '缺少任务', tasks: [] } },
+    {
+      source: 'ai',
+      plan: {
+        summary: '字段不完整',
+        tasks: [{ title: '只有标题' }],
+      },
+    },
+  ])('rejects malformed nested plan result: %j', async (result) => {
+    const caller: CloudFunctionCaller = async () => ({
+      result: { ok: true, result },
+    });
+
+    await expect(
+      requestDailyPlan(
+        { availableMinutes: 30, goalIds: ['goal-1'] },
+        caller,
+      ),
+    ).rejects.toEqual(new CloudApiError('INTERNAL_ERROR'));
+  });
+
+  it('rejects a blank confirmed goal ID', async () => {
+    const caller: CloudFunctionCaller = async () => ({
+      result: { ok: true, goal: { id: ' ' } },
+    });
+
+    await expect(
+      confirmGoal(
+        {
+          requestId: 'request-1',
+          type: 'study',
+          summary: {
+            goal: '学习',
+            successCriteria: '完成练习',
+            deadline: null,
+            currentProgress: '开始',
+            suggestedStage: '基础练习',
+            excludedContent: [],
+          },
+        },
+        caller,
+      ),
+    ).rejects.toEqual(new CloudApiError('INTERNAL_ERROR'));
+  });
 });

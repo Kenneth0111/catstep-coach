@@ -77,4 +77,14 @@ describe('native Mini Program structure', () => {
 
     expect(markup).not.toContain('url="/pages/today/index"');
   });
+
+  it('uses no infinite motion on the calm onboarding page', async () => {
+    const styles = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/goal/index.wxss'),
+      'utf8',
+    );
+
+    expect(styles).not.toContain('infinite');
+    expect(styles).not.toContain('@keyframes breathe');
+  });
 });

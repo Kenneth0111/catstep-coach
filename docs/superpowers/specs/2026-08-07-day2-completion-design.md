@@ -65,7 +65,7 @@ The function obtains `OPENID` from `getCloudbaseContext`. Its service validates 
 - `requestId`
 - `createdAt`
 
-The database-generated document ID is returned as `goal.id`. Clients cannot provide `owner`, `_openid`, status, timestamps, or document IDs.
+The server derives a deterministic document ID from the authenticated owner and `requestId`, then returns it as `goal.id`. This makes concurrent retries converge on one document. Clients cannot provide `owner`, `_openid`, status, timestamps, or document IDs.
 
 ### `plan-generate`
 

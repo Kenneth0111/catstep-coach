@@ -240,7 +240,7 @@ Assert unauthenticated requests return `{ ok: false, code: 'UNAUTHENTICATED' }` 
 
 - [ ] **Step 4: Implement handler, CloudBase repository, and deployment files**
 
-Use `getCloudbaseContext(context).OPENID`. Query `goals` with both `_openid` and `requestId`, limited to one. Save only server-built fields and return the CloudBase add result ID. Configure CommonJS output with package main `dist/goal-confirm/index.js` and include the service source.
+Use `getCloudbaseContext(context).OPENID`. Query `goals` with both `_openid` and `requestId`, limited to one. Derive a deterministic document ID from the authenticated owner and `requestId`, save only server-built fields with `doc(id).set(...)`, and return that ID. Configure CommonJS output with package main `dist/goal-confirm/index.js` and include the service source.
 
 - [ ] **Step 5: Add and pass structure/build tests**
 
