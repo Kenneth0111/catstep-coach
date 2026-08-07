@@ -31,6 +31,8 @@ export interface TokenHubProviderOptions {
   ): TokenHubChatMessage[];
 }
 
+export const TOKENHUB_REQUEST_TIMEOUT_MS = 5_000;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -57,16 +59,14 @@ export function createTokenHubProvider(
   const baseUrl = (
     options.baseUrl ?? 'https://tokenhub.tencentmaas.com/v1'
   ).replace(/\/+$/, '');
-  const timeoutMs = options.timeoutMs ?? 8_000;
+  const timeoutMs = options.timeoutMs ?? TOKENHUB_REQUEST_TIMEOUT_MS;
 
   return {
     async generateStructured(request) {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), timeoutMs);
-      let response: Response;
-
       try {
-        response = await fetchRequest(`${baseUrl}/chat/completions`, {
+        const response = await fetchRequest(`${baseUrl}/chat/completions`, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${options.apiKey}`,
@@ -79,32 +79,38 @@ export function createTokenHubProvider(
           }),
           signal: controller.signal,
         });
-      } catch {
+        if (!response.ok) {
+          throw new TokenHubProviderError('HTTP_ERROR');
+        }
+
+        let payload: unknown;
+        try {
+          payload = await response.json();
+        } catch {
+          throw new TokenHubProviderError(
+            controller.signal.aborted
+              ? 'NETWORK_ERROR'
+              : 'INVALID_RESPONSE',
+          );
+        }
+
+        const content = getMessageContent(payload);
+        if (!content) {
+          throw new TokenHubProviderError('INVALID_RESPONSE');
+        }
+
+        try {
+          return JSON.parse(content) as unknown;
+        } catch {
+          return content;
+        }
+      } catch (error) {
+        if (error instanceof TokenHubProviderError) {
+          throw error;
+        }
         throw new TokenHubProviderError('NETWORK_ERROR');
       } finally {
         clearTimeout(timeout);
-      }
-
-      if (!response.ok) {
-        throw new TokenHubProviderError('HTTP_ERROR');
-      }
-
-      let payload: unknown;
-      try {
-        payload = await response.json();
-      } catch {
-        throw new TokenHubProviderError('INVALID_RESPONSE');
-      }
-
-      const content = getMessageContent(payload);
-      if (!content) {
-        throw new TokenHubProviderError('INVALID_RESPONSE');
-      }
-
-      try {
-        return JSON.parse(content) as unknown;
-      } catch {
-        return content;
       }
     },
   };

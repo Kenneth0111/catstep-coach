@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createTokenHubProvider } from '../cloudfunctions/shared/tokenhub-provider';
+import {
+  TOKENHUB_REQUEST_TIMEOUT_MS,
+  createTokenHubProvider,
+} from '../cloudfunctions/shared/tokenhub-provider';
 import { buildGoalClarificationMessages } from '../cloudfunctions/goal-next-step/prompt';
 
 const request = {
@@ -13,6 +16,11 @@ const request = {
 };
 
 describe('TokenHub AI provider', () => {
+  it('keeps three possible workflow attempts within fifteen seconds', () => {
+    expect(TOKENHUB_REQUEST_TIMEOUT_MS).toBe(5_000);
+    expect(TOKENHUB_REQUEST_TIMEOUT_MS * 3).toBeLessThanOrEqual(15_000);
+  });
+
   it('posts an OpenAI-compatible request and parses JSON content', async () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
       new Response(
@@ -120,6 +128,39 @@ describe('TokenHub AI provider', () => {
             reject(new Error('aborted'));
           });
         }),
+      buildMessages: buildGoalClarificationMessages,
+    });
+
+    await expect(provider.generateStructured(request)).rejects.toMatchObject({
+      code: 'NETWORK_ERROR',
+    });
+  });
+
+  it('keeps the timeout active while parsing a stalled response body', async () => {
+    const provider = createTokenHubProvider({
+      apiKey: 'secret',
+      model: 'hy3',
+      timeoutMs: 1,
+      fetch: async (_input, options) =>
+        ({
+          ok: true,
+          json: () =>
+            new Promise((resolve, reject) => {
+              const delayedBody = setTimeout(
+                () =>
+                  resolve({
+                    choices: [
+                      { message: { content: '{"kind":"question"}' } },
+                    ],
+                  }),
+                20,
+              );
+              options?.signal?.addEventListener('abort', () => {
+                clearTimeout(delayedBody);
+                reject(new Error('body aborted'));
+              });
+            }),
+        }) as Response,
       buildMessages: buildGoalClarificationMessages,
     });
 

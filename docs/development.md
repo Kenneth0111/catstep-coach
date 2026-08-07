@@ -82,7 +82,7 @@ Profile 云函数通过 `@cloudbase/node-sdk` 的当前环境标识初始化，�
 - `TOKENHUB_MODEL`：已在 TokenHub 开通且符合发布要求的模型 ID，必填。
 - `TOKENHUB_BASE_URL`：可选，默认使用境内地址 `https://tokenhub.tencentmaas.com/v1`。
 
-不要把真实值写进仓库。单次模型请求在 8 秒后中止，业务层最多重试一次；部署时使用 Node.js 20，并把两个 AI 云函数的超时设置为至少 20 秒。构建后分别在 `cloudfunctions/goal-next-step/`、`cloudfunctions/goal-confirm/` 和 `cloudfunctions/plan-generate/` 上右键，选择云端安装依赖的上传部署方式。本地自动测试使用假的 HTTP 边界，不会调用 TokenHub 或消耗额度。
+不要把真实值写进仓库。单次模型请求（包含响应体读取）在 5 秒后中止；工作流最多执行首次请求、一次重试和一次结构修复，总模型等待不超过 15 秒。部署时使用 Node.js 20，并把两个 AI 云函数的超时设置为至少 20 秒。构建后分别在 `cloudfunctions/goal-next-step/`、`cloudfunctions/goal-confirm/` 和 `cloudfunctions/plan-generate/` 上右键，选择云端安装依赖的上传部署方式。本地自动测试使用假的 HTTP 边界，不会调用 TokenHub 或消耗额度。
 
 目标引导页会依次调用三个 Day 2 云函数。`goal-confirm` 把用户确认的目标写入 `goals` 集合；`plan-generate` 只为当前微信身份拥有的活动目标生成计划。Profile 云函数和 Today 页面持久化仍属于后续集成任务。
 
