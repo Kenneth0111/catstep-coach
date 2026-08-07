@@ -41,16 +41,17 @@ describe('goal.confirm handler', () => {
   });
 
   it('returns the confirmed goal', async () => {
-    await expect(
-      handleGoalConfirm(event, {}, {
-        getOpenid: () => 'user-1',
-        createRepository: repository,
-        now: () => new Date('2026-08-07T08:00:00.000Z'),
-      }),
-    ).resolves.toMatchObject({
-      ok: true,
-      goal: { id: 'goal-1', owner: 'user-1', title: '学会 TypeScript' },
+    const result = await handleGoalConfirm(event, {}, {
+      getOpenid: () => 'user-1',
+      createRepository: repository,
+      now: () => new Date('2026-08-07T08:00:00.000Z'),
     });
+
+    expect(result).toEqual({
+      ok: true,
+      goal: { id: 'goal-1' },
+    });
+    expect(JSON.stringify(result)).not.toContain('user-1');
   });
 
   it('maps invalid input to a stable public error', async () => {

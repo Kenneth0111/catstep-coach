@@ -27,7 +27,7 @@ export async function handleGoalConfirm(
       dependencies.createRepository(),
       dependencies.now,
     );
-    return { ok: true as const, goal };
+    return { ok: true as const, goal: { id: goal.id } };
   } catch (error) {
     if (error instanceof GoalConfirmationError) {
       return { ok: false as const, code: error.code };
