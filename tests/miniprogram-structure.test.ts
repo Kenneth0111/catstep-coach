@@ -68,4 +68,13 @@ describe('native Mini Program structure', () => {
     expect(markup).toContain('flow.summary.excludedContent');
     expect(markup).toContain('暂不安排');
   });
+
+  it('does not imply an unpersisted plan is available on Today', async () => {
+    const markup = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/goal/index.wxml'),
+      'utf8',
+    );
+
+    expect(markup).not.toContain('url="/pages/today/index"');
+  });
 });

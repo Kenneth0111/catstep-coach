@@ -89,7 +89,6 @@
       <view class="done-line"><text class="check-box">✓</text><text>{{item.doneCriteria}}</text></view>
       <text class="task-reason">为什么是这一步：{{item.reason}}</text>
     </view>
-    <navigator class="today-link" url="/pages/today/index">看看现有 Today 页面</navigator>
   </view>
 
   <view class="paper-card error-card reveal" wx:if="{{flow.stage === 'error'}}">

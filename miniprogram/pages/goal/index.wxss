@@ -358,14 +358,6 @@
   margin-top: 14rpx;
 }
 
-.today-link {
-  margin-top: 28rpx;
-  padding: 22rpx;
-  color: #356f63;
-  text-align: center;
-  text-decoration: underline;
-}
-
 .error-card {
   border-color: rgba(138, 100, 28, 0.45);
 }
