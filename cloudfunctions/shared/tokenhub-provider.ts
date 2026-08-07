@@ -1,8 +1,12 @@
 import type {
   AIProvider,
   StructuredGenerationRequest,
-} from '../shared/ai-provider';
-import type { ChatMessage } from './prompt';
+} from './ai-provider';
+
+export interface TokenHubChatMessage {
+  role: 'system' | 'user';
+  content: string;
+}
 
 type TokenHubProviderErrorCode =
   | 'NETWORK_ERROR'
@@ -22,7 +26,9 @@ export interface TokenHubProviderOptions {
   baseUrl?: string;
   timeoutMs?: number;
   fetch?: typeof fetch;
-  buildMessages(request: StructuredGenerationRequest): ChatMessage[];
+  buildMessages(
+    request: StructuredGenerationRequest,
+  ): TokenHubChatMessage[];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

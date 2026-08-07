@@ -10,6 +10,7 @@
   "include": [
     "*.ts",
     "../shared/ai-provider.ts",
-    "../shared/goal-next-step.ts"
+    "../shared/goal-next-step.ts",
+    "../shared/tokenhub-provider.ts"
   ]
 }

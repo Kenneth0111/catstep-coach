@@ -4,7 +4,7 @@ const cloudbase = require('@cloudbase/node-sdk') as {
 
 const { handleGoalNextStep } = require('./handler') as typeof import('./handler');
 const { buildGoalClarificationMessages } = require('./prompt') as typeof import('./prompt');
-const { createTokenHubProvider } = require('./tokenhub-provider') as typeof import('./tokenhub-provider');
+const { createTokenHubProvider } = require('../shared/tokenhub-provider') as typeof import('../shared/tokenhub-provider');
 
 exports.main = (event: unknown, context: unknown) =>
   handleGoalNextStep(event, context, {

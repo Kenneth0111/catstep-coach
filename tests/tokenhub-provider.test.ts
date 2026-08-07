@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createTokenHubProvider } from '../cloudfunctions/goal-next-step/tokenhub-provider';
+import { createTokenHubProvider } from '../cloudfunctions/shared/tokenhub-provider';
 import { buildGoalClarificationMessages } from '../cloudfunctions/goal-next-step/prompt';
 
 const request = {

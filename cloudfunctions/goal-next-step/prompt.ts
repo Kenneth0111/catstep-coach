@@ -1,13 +1,9 @@
 import type { StructuredGenerationRequest } from '../shared/ai-provider';
-
-export interface ChatMessage {
-  role: 'system' | 'user';
-  content: string;
-}
+import type { TokenHubChatMessage } from '../shared/tokenhub-provider';
 
 export function buildGoalClarificationMessages(
   request: StructuredGenerationRequest,
-): ChatMessage[] {
+): TokenHubChatMessage[] {
   const system = [
     '你是“猫步计划”的目标澄清引擎。只返回一个 JSON 对象，不要返回 Markdown。',
     '当信息不足且回答少于 3 个时，返回 {"kind":"question","field":"currentProgress|deadline|successCriteria","question":"..."}。',
