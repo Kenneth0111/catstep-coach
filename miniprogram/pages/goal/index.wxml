@@ -1,0 +1,97 @@
+<view class="goal-page">
+  <view class="hero">
+    <text class="eyebrow">第一次猫步</text>
+    <text class="hero-title">把远方，缩成今天的一小步</text>
+    <text class="hero-copy">不用一次想清所有事情。我们只问几个必要的问题。</text>
+  </view>
+
+  <view class="step-trail" aria-label="目标、澄清、计划三个阶段">
+    <view class="trail-item {{flow.stage === 'draft' ? 'is-current' : 'is-done'}}">
+      <view class="paw"><view class="toe"></view><view class="pad"></view></view>
+      <text>目标</text>
+    </view>
+    <view class="trail-line"></view>
+    <view class="trail-item {{flow.stage === 'clarifying' || flow.stage === 'summary' ? 'is-current' : (flow.stage === 'draft' ? '' : 'is-done')}}">
+      <view class="paw"><view class="toe"></view><view class="pad"></view></view>
+      <text>澄清</text>
+    </view>
+    <view class="trail-line"></view>
+    <view class="trail-item {{flow.stage === 'choosingTime' || flow.stage === 'generatingPlan' || flow.stage === 'plan' ? 'is-current' : ''}}">
+      <view class="paw"><view class="toe"></view><view class="pad"></view></view>
+      <text>计划</text>
+    </view>
+  </view>
+
+  <view class="paper-card reveal" wx:if="{{flow.stage === 'draft'}}">
+    <text class="card-kicker">01 · 先选一个方向</text>
+    <view class="type-row">
+      <button class="choice-button {{draftType === 'study' ? 'selected' : ''}}" data-type="study" bindtap="onSelectType">学习目标</button>
+      <button class="choice-button {{draftType === 'work' ? 'selected' : ''}}" data-type="work" bindtap="onSelectType">工作目标</button>
+    </view>
+    <label class="field-label" for="goal-title">你想完成什么？</label>
+    <input id="goal-title" class="text-input" maxlength="80" placeholder="例如：独立完成一个 TypeScript 小项目" value="{{draftTitle}}" bindinput="onTitleInput" />
+    <button class="primary-button" bindtap="onStartClarification">开始拆解</button>
+  </view>
+
+  <view class="paper-card reveal" wx:if="{{flow.stage === 'clarifying'}}">
+    <text class="card-kicker">02 · 只问必要的问题</text>
+    <view class="loading-block" wx:if="{{flow.busy}}">
+      <view class="ink-dot"></view><text>学霸猫正在整理线索…</text>
+    </view>
+    <block wx:else>
+      <text class="question">{{flow.question.question}}</text>
+      <textarea class="answer-input" maxlength="240" auto-height placeholder="写下真实情况，不用组织得很完美" value="{{answerText}}" bindinput="onAnswerInput"></textarea>
+      <text class="answer-count">已回答 {{flow.answers.length}} / 3</text>
+      <button class="primary-button" bindtap="onSubmitAnswer">继续</button>
+    </block>
+  </view>
+
+  <view class="paper-card reveal" wx:if="{{flow.stage === 'summary'}}">
+    <text class="card-kicker">目标摘要</text>
+    <text class="summary-title">{{flow.summary.goal}}</text>
+    <view class="summary-row"><text class="summary-label">完成标准</text><text>{{flow.summary.successCriteria}}</text></view>
+    <view class="summary-row"><text class="summary-label">当前进度</text><text>{{flow.summary.currentProgress}}</text></view>
+    <view class="summary-row"><text class="summary-label">截止日期</text><text>{{flow.summary.deadline || '暂不设截止日期'}}</text></view>
+    <view class="stage-note"><text>建议从这里开始</text><text class="stage-value">{{flow.summary.suggestedStage}}</text></view>
+    <button class="primary-button" disabled="{{flow.busy}}" bindtap="onConfirmGoal">{{flow.busy ? '正在保存…' : '确认这个目标'}}</button>
+  </view>
+
+  <view class="paper-card reveal" wx:if="{{flow.stage === 'choosingTime'}}">
+    <text class="card-kicker">03 · 今天留多少时间？</text>
+    <text class="question">选一个不勉强的长度</text>
+    <view class="minute-grid">
+      <button class="minute-button" data-minutes="15" bindtap="onSelectMinutes"><text class="minute-number">15</text><text>分钟</text></button>
+      <button class="minute-button featured" data-minutes="30" bindtap="onSelectMinutes"><text class="minute-number">30</text><text>分钟</text></button>
+      <button class="minute-button" data-minutes="60" bindtap="onSelectMinutes"><text class="minute-number">60</text><text>分钟</text></button>
+    </view>
+  </view>
+
+  <view class="paper-card loading-card reveal" wx:if="{{flow.stage === 'generatingPlan'}}">
+    <view class="ink-dot"></view>
+    <text class="question">正在把目标折成今天的脚步…</text>
+    <text class="muted">即使 AI 暂时不可用，也会给你一个可执行的起点。</text>
+  </view>
+
+  <view class="plan-section reveal" wx:if="{{flow.stage === 'plan'}}">
+    <view class="plan-heading">
+      <view><text class="card-kicker">你的第一份计划</text><text class="summary-title">{{flow.plan.summary}}</text></view>
+      <text class="source-tag {{flow.source === 'fallback' ? 'fallback' : ''}}">{{flow.source === 'fallback' ? '规则起步' : (flow.source === 'repaired' ? 'AI 已校正' : 'AI 推荐')}}</text>
+    </view>
+    <view class="plan-card" wx:for="{{flow.plan.tasks}}" wx:key="title">
+      <view class="task-top"><text class="task-index">0{{index + 1}}</text><text class="task-time">{{item.estimatedMinutes}} 分钟</text></view>
+      <text class="task-title">{{item.title}}</text>
+      <text class="task-action">{{item.action}}</text>
+      <view class="done-line"><text class="check-box">✓</text><text>{{item.doneCriteria}}</text></view>
+      <text class="task-reason">为什么是这一步：{{item.reason}}</text>
+    </view>
+    <navigator class="today-link" url="/pages/today/index">看看现有 Today 页面</navigator>
+  </view>
+
+  <view class="paper-card error-card reveal" wx:if="{{flow.stage === 'error'}}">
+    <text class="error-mark">脚印停了一下</text>
+    <text class="question">{{errorMessage}}</text>
+    <button class="primary-button" bindtap="onRetry">再试一次</button>
+  </view>
+
+  <text class="ai-note">目标和计划由 AI 辅助生成，最终决定始终属于你。</text>
+</view>
