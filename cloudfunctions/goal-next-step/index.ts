@@ -1,5 +1,5 @@
 const cloudbase = require('@cloudbase/node-sdk') as {
-  getCloudbaseContext(context: unknown): { OPENID?: string };
+  getCloudbaseContext(context: unknown): { WX_OPENID?: string };
 };
 
 const { handleGoalNextStep } = require('./handler') as typeof import('./handler');
@@ -9,7 +9,7 @@ const { createTokenHubProvider } = require('../shared/tokenhub-provider') as typ
 exports.main = (event: unknown, context: unknown) =>
   handleGoalNextStep(event, context, {
     getOpenid: (cloudContext) =>
-      cloudbase.getCloudbaseContext(cloudContext).OPENID,
+      cloudbase.getCloudbaseContext(cloudContext).WX_OPENID,
     env: process.env,
     createProvider: (configuration) =>
       createTokenHubProvider({

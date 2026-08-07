@@ -6,7 +6,7 @@ interface StoredGoalId {
 
 const cloudbase = require('@cloudbase/node-sdk') as {
   SYMBOL_CURRENT_ENV: string;
-  getCloudbaseContext(context: unknown): { OPENID?: string };
+  getCloudbaseContext(context: unknown): { WX_OPENID?: string };
   init(options: { env: string }): {
     database(): {
       command: { in(values: readonly string[]): unknown };
@@ -45,7 +45,7 @@ function createRepository(): OwnedGoalRepository {
 exports.main = (event: unknown, context: unknown) =>
   handlePlanGenerate(event, context, {
     getOpenid: (cloudContext) =>
-      cloudbase.getCloudbaseContext(cloudContext).OPENID,
+      cloudbase.getCloudbaseContext(cloudContext).WX_OPENID,
     env: process.env,
     createRepository,
     createProvider: (configuration) =>
