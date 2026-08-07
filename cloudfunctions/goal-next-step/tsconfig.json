@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "noEmit": false,
+    "outDir": "dist",
+    "rootDir": ".."
+  },
+  "include": [
+    "*.ts",
+    "../shared/ai-provider.ts",
+    "../shared/goal-next-step.ts"
+  ]
+}
