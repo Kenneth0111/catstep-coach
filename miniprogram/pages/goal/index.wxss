@@ -228,6 +228,10 @@
   color: #504a41;
 }
 
+.excluded-item {
+  display: block;
+}
+
 .stage-note {
   display: flex;
   flex-direction: column;

@@ -58,4 +58,14 @@ describe('native Mini Program structure', () => {
       'pages/today/index',
     ]);
   });
+
+  it('shows excluded content before goal confirmation', async () => {
+    const markup = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/goal/index.wxml'),
+      'utf8',
+    );
+
+    expect(markup).toContain('flow.summary.excludedContent');
+    expect(markup).toContain('暂不安排');
+  });
 });

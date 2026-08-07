@@ -52,6 +52,11 @@
     <view class="summary-row"><text class="summary-label">完成标准</text><text>{{flow.summary.successCriteria}}</text></view>
     <view class="summary-row"><text class="summary-label">当前进度</text><text>{{flow.summary.currentProgress}}</text></view>
     <view class="summary-row"><text class="summary-label">截止日期</text><text>{{flow.summary.deadline || '暂不设截止日期'}}</text></view>
+    <view class="summary-row">
+      <text class="summary-label">暂不安排</text>
+      <text wx:if="{{!flow.summary.excludedContent.length}}">没有特别排除的内容</text>
+      <text class="excluded-item" wx:for="{{flow.summary.excludedContent}}" wx:key="*this">· {{item}}</text>
+    </view>
     <view class="stage-note"><text>建议从这里开始</text><text class="stage-value">{{flow.summary.suggestedStage}}</text></view>
     <button class="primary-button" disabled="{{flow.busy}}" bindtap="onConfirmGoal">{{flow.busy ? '正在保存…' : '确认这个目标'}}</button>
   </view>
