@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   GoalConfirmationError,
   confirmGoal,
+  createGoalDocumentId,
   type ConfirmedGoal,
   type GoalRepository,
   type PersistedGoal,
@@ -24,7 +25,7 @@ function createRepository(existing: ConfirmedGoal | null = null) {
         ? existing
         : null;
     },
-    async save(goal) {
+    async save(_documentId, goal) {
       saved.push(goal);
       return { id: 'goal-1', ...goal };
     },
@@ -33,6 +34,42 @@ function createRepository(existing: ConfirmedGoal | null = null) {
 }
 
 describe('confirmGoal', () => {
+  it('derives one document ID per owner and request for concurrent replays', () => {
+    expect(createGoalDocumentId('user-1', 'request-1')).toBe(
+      createGoalDocumentId('user-1', 'request-1'),
+    );
+    expect(createGoalDocumentId('user-1', 'request-1')).not.toBe(
+      createGoalDocumentId('user-2', 'request-1'),
+    );
+  });
+
+  it('targets one document when the same request races concurrently', async () => {
+    const documentIds: string[] = [];
+    const repository: GoalRepository = {
+      async findByRequestId() {
+        return null;
+      },
+      async save(documentId, goal) {
+        documentIds.push(documentId);
+        await Promise.resolve();
+        return { id: documentId, ...goal };
+      },
+    };
+    const input = {
+      requestId: 'request-race',
+      type: 'study' as const,
+      summary: validSummary,
+    };
+
+    const [first, second] = await Promise.all([
+      confirmGoal('user-1', input, repository, () => new Date()),
+      confirmGoal('user-1', input, repository, () => new Date()),
+    ]);
+
+    expect(first.id).toBe(second.id);
+    expect(new Set(documentIds).size).toBe(1);
+  });
+
   it('saves trusted ownership and server fields for a new request', async () => {
     const { repository, saved } = createRepository();
 

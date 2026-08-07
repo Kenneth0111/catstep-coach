@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { GoalSummary } from '../shared/goal-next-step';
 
 export interface GoalConfirmationInput {
@@ -30,7 +31,7 @@ export interface GoalRepository {
     openid: string,
     requestId: string,
   ): Promise<ConfirmedGoal | null>;
-  save(goal: PersistedGoal): Promise<ConfirmedGoal>;
+  save(documentId: string, goal: PersistedGoal): Promise<ConfirmedGoal>;
 }
 
 export class GoalConfirmationError extends Error {
@@ -38,6 +39,18 @@ export class GoalConfirmationError extends Error {
     super(code);
     this.name = 'GoalConfirmationError';
   }
+}
+
+export function createGoalDocumentId(
+  openid: string,
+  requestId: string,
+): string {
+  return createHash('sha256')
+    .update(openid)
+    .update('\0')
+    .update(requestId)
+    .digest('hex')
+    .slice(0, 32);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -98,7 +111,7 @@ export async function confirmGoal(
     return existing;
   }
 
-  return repository.save({
+  const goal = {
     _openid: openid,
     owner: openid,
     type: input.type,
@@ -111,5 +124,6 @@ export async function confirmGoal(
     status: 'active',
     requestId: input.requestId,
     createdAt: now().toISOString(),
-  });
+  } satisfies PersistedGoal;
+  return repository.save(createGoalDocumentId(openid, input.requestId), goal);
 }

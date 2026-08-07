@@ -19,7 +19,9 @@ const cloudbase = require('@cloudbase/node-sdk') as {
             get(): Promise<{ data: StoredGoal[] }>;
           };
         };
-        add(goal: PersistedGoal): Promise<{ id: string }>;
+        doc(id: string): {
+          set(goal: PersistedGoal): Promise<unknown>;
+        };
       };
     };
   };
@@ -44,9 +46,9 @@ function createRepository(): GoalRepository {
         .get();
       return result.data[0] ? toConfirmedGoal(result.data[0]) : null;
     },
-    async save(goal) {
-      const result = await goals.add(goal);
-      return { id: result.id, ...goal };
+    async save(documentId, goal) {
+      await goals.doc(documentId).set(goal);
+      return { id: documentId, ...goal };
     },
   };
 }

@@ -20,7 +20,7 @@ function repository(): GoalRepository {
     async findByRequestId() {
       return null;
     },
-    async save(goal) {
+    async save(_documentId, goal) {
       return { id: 'goal-1', ...goal };
     },
   };
