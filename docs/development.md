@@ -1,6 +1,6 @@
 # 本地开发指南
 
-这份指南用于在 Windows 上安装依赖、运行自动检查，并把猫步计划导入微信开发者工具。当前 Day 1 基础包含 Today 页面、确定性的任务选择规则和 Profile 初始化云函数边界；Today 页面暂时使用本地示例数据，尚未接入 CloudBase 持久化。
+这份指南用于在 Windows 上安装依赖、运行自动检查，并把猫步计划导入微信开发者工具。当前实现包含 Today 页面、目标澄清与首份计划引导、Profile 初始化、目标确认持久化，以及带结构校验和规则降级的计划生成；Today 页面暂时使用本地示例数据，生成的计划预览尚未持久化。
 
 ## 前置条件
 
@@ -30,13 +30,16 @@ npm.cmd run typecheck
 npm.cmd run test:watch
 ```
 
-Profile 云函数有独立的 CommonJS 构建配置。部署前执行：
+CloudBase 云函数有独立的 CommonJS 构建配置。部署前执行：
 
 ```powershell
 npm.cmd run build --prefix cloudfunctions/profile-get-or-create
+npm.cmd run build --prefix cloudfunctions/goal-next-step
+npm.cmd run build --prefix cloudfunctions/goal-confirm
+npm.cmd run build --prefix cloudfunctions/plan-generate
 ```
 
-编译产物位于 `cloudfunctions/profile-get-or-create/dist/`，不会提交到 Git。
+编译产物位于各云函数的 `dist/`，不会提交到 Git。
 
 ## 导入微信开发者工具
 
@@ -73,7 +76,45 @@ git check-ignore project.private.config.json
 
 Profile 云函数通过 `@cloudbase/node-sdk` 的当前环境标识初始化，不需要在仓库中硬编码环境 ID。部署前先运行云函数构建命令，然后在 `cloudfunctions/profile-get-or-create/` 上右键，选择云端安装依赖的上传部署方式。
 
-当前小程序入口尚未调用 Profile 云函数。创建环境和部署函数只是在准备后端边界；页面持久化集成属于后续任务。
+`goal-next-step` 和 `plan-generate` 云函数还需要在 CloudBase 控制台配置以下运行时环境变量：
+
+- `TOKENHUB_API_KEY`：TokenHub API Key，必填。
+- `TOKENHUB_MODEL`：已在 TokenHub 开通且符合发布要求的模型 ID，必填。
+- `TOKENHUB_BASE_URL`：可选，默认使用境内地址 `https://tokenhub.tencentmaas.com/v1`。
+
+不要把真实值写进仓库。单次模型请求（包含响应体读取）在 5 秒后中止；工作流最多执行首次请求、一次重试和一次结构修复，总模型等待不超过 15 秒。部署时使用 Node.js 20，并把两个 AI 云函数的超时设置为至少 20 秒。构建后分别在 `cloudfunctions/goal-next-step/`、`cloudfunctions/goal-confirm/` 和 `cloudfunctions/plan-generate/` 上右键，选择云端安装依赖的上传部署方式。本地自动测试使用假的 HTTP 边界，不会调用 TokenHub 或消耗额度。
+
+目标引导页会依次调用三个 Day 2 云函数。`goal-confirm` 把用户确认的目标写入 `goals` 集合；`plan-generate` 只为当前微信身份拥有的活动目标生成计划。Profile 云函数和 Today 页面持久化仍属于后续集成任务。
+
+## TokenHub 单次连通检查
+
+Smoke 命令会发送一条不含个人数据的合成计划请求，消耗一次模型调用，只输出模型名、耗时和结构校验结果。先在当前 PowerShell 进程设置值，不要写入仓库文件：
+
+```powershell
+$env:TOKENHUB_API_KEY='在本机填写真实 API Key'
+$env:TOKENHUB_MODEL='在本机填写当前可用模型 ID'
+npm.cmd run smoke:tokenhub
+Remove-Item Env:TOKENHUB_API_KEY
+Remove-Item Env:TOKENHUB_MODEL
+```
+
+成功输出形如：
+
+```json
+{"ok":true,"model":"已配置的模型 ID","latencyMs":1234,"structurallyValid":true}
+```
+
+命令不会输出 API Key、提示词或完整模型响应。未设置两个必填环境变量时，命令在网络调用前失败。
+
+## 手工检查目标到计划流程
+
+1. 构建并部署 `goal-next-step`、`goal-confirm` 和 `plan-generate`，为两个 AI 函数配置相同的 TokenHub 环境变量。
+2. 在微信开发者工具中重新编译，确认首页显示“第一次猫步”。
+3. 选择学习或工作目标，输入标题并完成不超过三个澄清问题。
+4. 检查目标摘要，点击确认，选择 15、30 或 60 分钟。
+5. 确认计划包含具体动作、预计时长、完成标准和原因，总时长不超过选择值。
+6. 在数据库中确认 `goals` 文档的 `_openid` 与当前用户一致；重复点击或重试同一确认请求不会新增第二条目标。
+7. 临时移除或填错 TokenHub 配置，确认计划流程显示规则降级或稳定错误，不泄露上游响应。
 
 ## 手工检查 Today 页面
 
@@ -102,12 +143,17 @@ Profile 云函数通过 `@cloudbase/node-sdk` 的当前环境标识初始化，�
 
 ```powershell
 npm.cmd run build --prefix cloudfunctions/profile-get-or-create
+npm.cmd run build --prefix cloudfunctions/goal-next-step
+npm.cmd run build --prefix cloudfunctions/goal-confirm
+npm.cmd run build --prefix cloudfunctions/plan-generate
 ```
 
-确认 `cloudfunctions/profile-get-or-create/dist/index.js` 存在，再选择云端安装依赖并重新部署。
+确认对应 `package.json` 的 `main` 文件存在，再选择云端安装依赖并重新部署。
 
 ## 相关文档
 
 - [项目概览](../README.md)
 - [MVP 产品需求与技术设计](superpowers/specs/2026-08-06-catstep-mini-program-design.md)
+- [Day 2 Completion 设计](superpowers/specs/2026-08-07-day2-completion-design.md)
+- [Day 2 Completion 实施计划](superpowers/plans/2026-08-07-day2-completion.md)
 - [Day 1 Foundation 实施计划](superpowers/plans/2026-08-06-day1-foundation.md)

@@ -8,6 +8,12 @@ const requiredFiles = [
   'miniprogram/app.ts',
   'miniprogram/app.json',
   'miniprogram/app.wxss',
+  'miniprogram/shared/cloud-api.ts',
+  'miniprogram/shared/goal-flow.ts',
+  'miniprogram/pages/goal/index.ts',
+  'miniprogram/pages/goal/index.json',
+  'miniprogram/pages/goal/index.wxml',
+  'miniprogram/pages/goal/index.wxss',
   'miniprogram/pages/today/index.ts',
   'miniprogram/pages/today/index.json',
   'miniprogram/pages/today/index.wxml',
@@ -40,5 +46,45 @@ describe('native Mini Program structure', () => {
     ) as { navigationBarTitleText?: unknown };
 
     expect(pageConfig.navigationBarTitleText).toBe('猫步计划');
+  });
+
+  it('starts with goal onboarding and keeps Today registered', async () => {
+    const appConfig = JSON.parse(
+      await readFile(resolve(process.cwd(), 'miniprogram/app.json'), 'utf8'),
+    ) as { pages?: unknown };
+
+    expect(appConfig.pages).toEqual([
+      'pages/goal/index',
+      'pages/today/index',
+    ]);
+  });
+
+  it('shows excluded content before goal confirmation', async () => {
+    const markup = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/goal/index.wxml'),
+      'utf8',
+    );
+
+    expect(markup).toContain('flow.summary.excludedContent');
+    expect(markup).toContain('暂不安排');
+  });
+
+  it('does not imply an unpersisted plan is available on Today', async () => {
+    const markup = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/goal/index.wxml'),
+      'utf8',
+    );
+
+    expect(markup).not.toContain('url="/pages/today/index"');
+  });
+
+  it('uses no infinite motion on the calm onboarding page', async () => {
+    const styles = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/goal/index.wxss'),
+      'utf8',
+    );
+
+    expect(styles).not.toContain('infinite');
+    expect(styles).not.toContain('@keyframes breathe');
   });
 });

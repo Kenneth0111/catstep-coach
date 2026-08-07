@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "noEmit": false,
+    "outDir": "dist",
+    "rootDir": ".."
+  },
+  "include": [
+    "*.ts",
+    "../shared/ai-provider.ts",
+    "../shared/daily-plan.ts",
+    "../shared/generate-daily-plan.ts",
+    "../shared/tokenhub-provider.ts"
+  ]
+}
