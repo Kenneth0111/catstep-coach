@@ -1,6 +1,6 @@
 const cloudbase = require('@cloudbase/node-sdk') as {
   SYMBOL_CURRENT_ENV: string;
-  getCloudbaseContext(context: unknown): { OPENID?: string };
+  getCloudbaseContext(context: unknown): { WX_OPENID?: string };
   init(options: { env: string }): {
     database(): {
       collection(name: string): {
@@ -52,13 +52,13 @@ const repository: ProfileRepository = {
 };
 
 exports.main = async (_event: unknown, context: unknown) => {
-  const { OPENID } = cloudbase.getCloudbaseContext(context);
-  if (!OPENID) {
+  const { WX_OPENID } = cloudbase.getCloudbaseContext(context);
+  if (!WX_OPENID) {
     return { ok: false as const, code: 'UNAUTHENTICATED' as const };
   }
 
   const profile: UserProfile = await getOrCreateProfile(
-    OPENID,
+    WX_OPENID,
     repository,
     () => new Date(),
   );

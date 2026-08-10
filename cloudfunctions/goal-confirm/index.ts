@@ -10,7 +10,7 @@ interface StoredGoal extends PersistedGoal {
 
 const cloudbase = require('@cloudbase/node-sdk') as {
   SYMBOL_CURRENT_ENV: string;
-  getCloudbaseContext(context: unknown): { OPENID?: string };
+  getCloudbaseContext(context: unknown): { WX_OPENID?: string };
   init(options: { env: string }): {
     database(): {
       collection(name: string): {
@@ -56,7 +56,7 @@ function createRepository(): GoalRepository {
 exports.main = (event: unknown, context: unknown) =>
   handleGoalConfirm(event, context, {
     getOpenid: (cloudContext) =>
-      cloudbase.getCloudbaseContext(cloudContext).OPENID,
+      cloudbase.getCloudbaseContext(cloudContext).WX_OPENID,
     createRepository,
     now: () => new Date(),
   });
