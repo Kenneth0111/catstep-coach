@@ -40,4 +40,24 @@ describe('plan.confirm CloudBase repository', () => {
     )).resolves.toEqual({ id: documentId, ...persistedPlan });
     expect(getPlan).toHaveBeenCalledOnce();
   });
+
+  it('recovers when a committed transaction returns no usable result', async () => {
+    const getPlan = vi.fn(async () => ({ data: [storedPlan] }));
+    const database: PlanRepositoryDatabase = {
+      command: { in: vi.fn() },
+      plans: {
+        doc: vi.fn(() => ({ get: getPlan })),
+      },
+      goals: {
+        where: vi.fn(() => ({ get: async () => ({ data: [] }) })),
+      },
+      runTransaction: vi.fn(async () => ({ result: undefined as never })),
+    };
+    const repository = createDailyPlanRepository(database);
+
+    await expect(
+      repository.saveIfAbsent(documentId, persistedPlan),
+    ).resolves.toEqual({ id: documentId, ...persistedPlan });
+    expect(getPlan).toHaveBeenCalledOnce();
+  });
 });

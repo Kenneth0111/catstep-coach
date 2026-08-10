@@ -49,6 +49,17 @@ function toConfirmedPlan(plan: StoredPlan): ConfirmedDailyPlan {
   return { id: _id, ...fields };
 }
 
+function isConfirmedPlan(value: unknown): value is ConfirmedDailyPlan {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'id' in value &&
+    typeof value.id === 'string' &&
+    'date' in value &&
+    typeof value.date === 'string'
+  );
+}
+
 export function createDailyPlanRepository(
   database: PlanRepositoryDatabase,
 ): DailyPlanRepository {
@@ -84,7 +95,13 @@ export function createDailyPlanRepository(
             return { id: documentId, ...plan };
           },
         );
-        return transactionResult.result;
+        const confirmedPlan = (
+          transactionResult as { result?: unknown } | undefined
+        )?.result;
+        if (!isConfirmedPlan(confirmedPlan)) {
+          throw new Error('invalid transaction result');
+        }
+        return confirmedPlan;
       } catch (error) {
         const existing = await readPlan(documentId);
         if (existing) {

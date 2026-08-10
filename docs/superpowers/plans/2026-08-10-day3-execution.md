@@ -134,7 +134,7 @@
 - [x] 运行 `npm.cmd test` 和 `npm.cmd run typecheck`。
 - [x] 构建全部 CloudBase 云函数，包括 Day 3 新增云函数。
 - [x] 运行 `git diff --check`、`git status --short --branch`，并确认没有跟踪私密文件或生成文件。
-- [x] 除非所需外部环境已经可用，否则将真实 CloudBase 验证报告为“被外部配置阻塞”；绝不输出凭证。
+- [x] 在微信开发者工具连接真实 CloudBase 开发环境，验证确认计划、加载 Today、开始、稳定重试、完成和难度反馈；真实 TokenHub、物理真机与发布部署仍明确标为待验证，且不输出凭证。
 
 ## 计划自检
 

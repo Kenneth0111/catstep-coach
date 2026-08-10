@@ -130,6 +130,10 @@ Remove-Item Env:TOKENHUB_MODEL
 
 过期响应保护由 `tests/plan-update-task-client.test.ts` 自动化覆盖，不作为普通 UI 操作的手工验证步骤。
 
+### 2026-08-10 Day 3 验证记录
+
+已在微信开发者工具连接真实 CloudBase 开发环境完成以下验证：确认计划并写入 `plans`、加载 Today、开始任务、使用同一请求 ID 稳定重试、完成任务，以及写入 `difficultyFeedback: "just_right"`。验证期间计划生成走规则降级，因此该记录不代表真实 TokenHub 模型连通已经通过；物理真机、体验版和发布部署也仍待验证。
+
 ## 常见问题
 
 ### 导入后找不到页面
