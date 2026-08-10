@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   CloudApiError,
+  confirmDailyPlan,
   confirmGoal,
+  getTodayPlan,
   requestDailyPlan,
   requestGoalNextStep,
   type CloudFunctionCaller,
@@ -79,6 +81,99 @@ describe('Mini Program CloudBase API boundary', () => {
     await requestDailyPlan(input, caller);
 
     expect(caller).toHaveBeenCalledWith({ name: 'plan-generate', data: input });
+  });
+
+  it('confirms the complete edited daily plan with the exact input', async () => {
+    const input = {
+      requestId: 'plan-request-1',
+      availableMinutes: 30,
+      plan: {
+        summary: '先走一步',
+        tasks: [
+          {
+            title: '完成练习',
+            action: '完成五道练习',
+            estimatedMinutes: 30,
+            doneCriteria: '五道练习通过',
+            goalId: 'goal-1',
+            reason: '巩固基础',
+            difficulty: 'medium' as const,
+          },
+        ],
+      },
+    };
+    const caller = vi.fn(async () => ({
+      result: {
+        ok: true,
+        plan: { id: 'plan-1', date: '2026-08-10' },
+      },
+    })) satisfies CloudFunctionCaller;
+
+    await expect(confirmDailyPlan(input, caller)).resolves.toEqual({
+      id: 'plan-1',
+      date: '2026-08-10',
+    });
+    expect(caller).toHaveBeenCalledWith({ name: 'plan-confirm', data: input });
+  });
+
+  it('loads the nullable authenticated Today plan', async () => {
+    const caller = vi.fn(async () => ({
+      result: {
+        ok: true,
+        plan: {
+          id: 'plan-1',
+          date: '2026-08-10',
+          availableMinutes: 30,
+          summary: '先走一步',
+          tasks: [
+            {
+              id: 'task-1',
+              title: '完成练习',
+              action: '完成五道练习',
+              estimatedMinutes: 30,
+              doneCriteria: '五道练习通过',
+              goalId: 'goal-1',
+              reason: '巩固基础',
+              difficulty: 'medium',
+              priority: 1,
+              status: 'pending',
+            },
+          ],
+        },
+      },
+    })) satisfies CloudFunctionCaller;
+
+    const plan = await getTodayPlan(caller);
+
+    expect(plan?.id).toBe('plan-1');
+    expect(caller).toHaveBeenCalledWith({ name: 'plan-get-today', data: {} });
+  });
+
+  it('accepts an empty Today plan result', async () => {
+    const caller: CloudFunctionCaller = async () => ({
+      result: { ok: true, plan: null },
+    });
+
+    await expect(getTodayPlan(caller)).resolves.toBeNull();
+  });
+
+  it.each([
+    { id: 'plan-1' },
+    {
+      id: 'plan-1',
+      date: '2026-08-10',
+      availableMinutes: 30,
+      summary: '缺少任务',
+      tasks: [],
+    },
+  ])('rejects malformed Today plan data: %j', async (plan) => {
+    const caller: CloudFunctionCaller = async () => ({
+      result: { ok: true, plan },
+    });
+
+    await expect(getTodayPlan(caller)).rejects.toEqual(
+      new CloudApiError('INTERNAL_ERROR'),
+    );
   });
 
   it.each([

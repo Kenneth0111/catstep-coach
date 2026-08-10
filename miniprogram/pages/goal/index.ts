@@ -1,5 +1,6 @@
 import {
   CloudApiError,
+  confirmDailyPlan as persistDailyPlan,
   confirmGoal,
   requestDailyPlan,
   requestGoalNextStep,
@@ -10,11 +11,14 @@ import {
   markGoalConfirmed,
   receiveGoalStep,
   receivePlan,
+  removePlanTask,
+  restorePlanTaskInput,
   retryGoalFlow,
   selectAvailableMinutes,
   setGoalFlowError,
   startClarification,
   submitGoalAnswer,
+  updatePlanTask,
   type GoalFlowState,
   type GoalType,
   type PublicErrorCode,
@@ -38,6 +42,8 @@ Page({
     draftTitle: '',
     answerText: '',
     requestId: '',
+    planRequestId: '',
+    savingPlan: false,
     errorMessage: '',
   },
 
@@ -109,6 +115,79 @@ Page({
       await this.confirmCurrentGoal(flow, this.data.requestId);
     } else {
       await this.generatePlan(flow);
+    }
+  },
+
+  onPlanTaskEdit(event: WechatMiniprogram.Input) {
+    const index = Number(event.currentTarget.dataset.index);
+    const field = String(event.currentTarget.dataset.field);
+    const task = this.data.flow.plan?.tasks[index];
+    if (!task) {
+      return;
+    }
+    const update = {
+      title: task.title,
+      action: task.action,
+      estimatedMinutes: task.estimatedMinutes,
+      doneCriteria: task.doneCriteria,
+    };
+    const value = event.detail.value;
+    if (field === 'title') {
+      update.title = value;
+    } else if (field === 'action') {
+      update.action = value;
+    } else if (field === 'estimatedMinutes') {
+      update.estimatedMinutes = Number(value);
+    } else if (field === 'doneCriteria') {
+      update.doneCriteria = value;
+    } else {
+      return;
+    }
+
+    try {
+      this.setData({ flow: updatePlanTask(this.data.flow, index, update) });
+    } catch {
+      this.setData({ flow: restorePlanTaskInput(this.data.flow, index) });
+      wx.showToast({ title: '请检查任务内容和总时长', icon: 'none' });
+    }
+  },
+
+  onRemovePlanTask(event: WechatMiniprogram.TouchEvent) {
+    try {
+      const index = Number(event.currentTarget.dataset.index);
+      this.setData({ flow: removePlanTask(this.data.flow, index) });
+    } catch {
+      wx.showToast({ title: '今天至少保留一小步', icon: 'none' });
+    }
+  },
+
+  async onConfirmDailyPlan() {
+    if (
+      this.data.savingPlan ||
+      !this.data.flow.plan ||
+      !this.data.flow.availableMinutes
+    ) {
+      return;
+    }
+    const requestId = this.data.planRequestId || createRequestId();
+    this.setData({ savingPlan: true, planRequestId: requestId });
+    try {
+      await persistDailyPlan({
+        requestId,
+        availableMinutes: this.data.flow.availableMinutes,
+        plan: this.data.flow.plan,
+      });
+      await wx.redirectTo({ url: '/pages/today/index' });
+    } catch (error) {
+      const code =
+        error instanceof CloudApiError
+          ? error.code
+          : ('INTERNAL_ERROR' as const);
+      this.setData({
+        savingPlan: false,
+        errorMessage: errorMessages[code],
+      });
+      wx.showToast({ title: errorMessages[code], icon: 'none' });
     }
   },
 

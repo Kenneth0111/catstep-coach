@@ -70,3 +70,40 @@
   font-size: 34rpx;
   font-weight: 700;
 }
+
+.state-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+  padding: 40rpx 32rpx;
+  border: 2rpx dashed #9a927f;
+  border-radius: 16rpx;
+  background: #fffaf0;
+  color: #625c52;
+}
+
+.state-title {
+  color: #356f63;
+  font-size: 34rpx;
+  font-weight: 700;
+}
+
+.state-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 88rpx;
+  margin-top: 20rpx;
+  border-radius: 12rpx;
+  background: #356f63;
+  color: #f7f0df;
+  font-size: 30rpx;
+}
+
+.state-action::after {
+  border: 0;
+}
+
+.error-state {
+  border-color: #d5a63f;
+}

@@ -82,12 +82,22 @@
       <view><text class="card-kicker">你的第一份计划</text><text class="summary-title">{{flow.plan.summary}}</text></view>
       <text class="source-tag {{flow.source === 'fallback' ? 'fallback' : ''}}">{{flow.source === 'fallback' ? '规则起步' : (flow.source === 'repaired' ? 'AI 已校正' : 'AI 推荐')}}</text>
     </view>
-    <view class="plan-card" wx:for="{{flow.plan.tasks}}" wx:key="title">
+    <view class="plan-card" wx:for="{{flow.plan.tasks}}" wx:key="clientKey">
       <view class="task-top"><text class="task-index">0{{index + 1}}</text><text class="task-time">{{item.estimatedMinutes}} 分钟</text></view>
-      <text class="task-title">{{item.title}}</text>
-      <text class="task-action">{{item.action}}</text>
-      <view class="done-line"><text class="check-box">✓</text><text>{{item.doneCriteria}}</text></view>
+      <text class="edit-label">任务名称</text>
+      <input class="plan-edit-input" data-index="{{index}}" data-field="title" value="{{item.title}}" bindblur="onPlanTaskEdit" />
+      <text class="edit-label">具体动作</text>
+      <textarea class="plan-edit-input plan-edit-area" data-index="{{index}}" data-field="action" value="{{item.action}}" auto-height bindblur="onPlanTaskEdit"></textarea>
+      <text class="edit-label">预计分钟</text>
+      <input class="plan-edit-input" type="number" data-index="{{index}}" data-field="estimatedMinutes" value="{{item.estimatedMinutes}}" bindblur="onPlanTaskEdit" />
+      <text class="edit-label">完成标准</text>
+      <input class="plan-edit-input" data-index="{{index}}" data-field="doneCriteria" value="{{item.doneCriteria}}" bindblur="onPlanTaskEdit" />
       <text class="task-reason">为什么是这一步：{{item.reason}}</text>
+      <button class="remove-task-button" disabled="{{flow.plan.tasks.length <= 1}}" data-index="{{index}}" bindtap="onRemovePlanTask">删除这一步</button>
+    </view>
+    <view class="confirm-plan-card">
+      <text class="muted">确认后会保存为今天的正式计划，你仍然拥有最终决定权。</text>
+      <button class="primary-button" disabled="{{savingPlan}}" bindtap="onConfirmDailyPlan">{{savingPlan ? '正在保存今日计划…' : '确认今日计划'}}</button>
     </view>
   </view>
 

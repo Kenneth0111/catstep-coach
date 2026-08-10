@@ -54,9 +54,10 @@ AI 能力拆分为 `clarifyGoal`、`generateDailyPlan`、`resizeTask` 和 `gener
 - [x] Today 页面、任务卡片与手绘暖色视觉基础
 - [x] 确定性的任务选择、排序和计划汇总规则
 - [x] CloudBase Profile 初始化服务与身份边界
-- [ ] Today 页面与 CloudBase 持久化集成
+- [x] Today 页面与 CloudBase 持久化集成
 - [x] AIProvider、目标澄清、每日计划校验与规则降级核心
 - [x] 目标澄清 UI、目标确认持久化与首份计划预览
+- [x] 已确认计划的加载、任务执行与难度反馈
 - [ ] 真实 TokenHub / CloudBase 开发环境连通验证
 - [ ] 目标、执行、复盘和成长的完整 UI
 - [ ] 自动化端到端测试、完整真机验收与体验版部署
@@ -68,6 +69,8 @@ AI 能力拆分为 `clarifyGoal`、`generateDailyPlan`、`resizeTask` 和 `gener
 - [Day 1 Foundation 实施计划](docs/superpowers/plans/2026-08-06-day1-foundation.md)
 - [Day 2 Completion 设计](docs/superpowers/specs/2026-08-07-day2-completion-design.md)
 - [Day 2 Completion 实施计划](docs/superpowers/plans/2026-08-07-day2-completion.md)
+- [Day 3 任务执行设计](docs/superpowers/specs/2026-08-10-day3-execution-design.md)
+- [Day 3 任务执行实施计划](docs/superpowers/plans/2026-08-10-day3-execution.md)
 
 ## MVP 验收重点
 
@@ -86,4 +89,4 @@ AI 能力拆分为 `clarifyGoal`、`generateDailyPlan`、`resizeTask` 和 `gener
 
 ## 仓库说明
 
-Day 1 工程基础和 Day 2 的目标到首份计划闭环已经完成自动测试：仓库包含原生目标引导页、幂等目标持久化、按微信身份隔离的计划生成、TokenHub 适配边界和规则降级。真实模型与 CloudBase 开发环境连通、Today 计划持久化、完整执行闭环和发布部署仍待后续验收。模型凭证与环境配置只保存在本地或云端，不会提交到 Git。
+Day 1 工程基础、Day 2 的目标到首份计划闭环，以及 Day 3 的今日计划确认与执行已完成自动测试：仓库包含原生目标引导页、幂等目标持久化、按微信身份隔离的计划生成，以及用户确认后的上海自然日计划持久化。Today 通过 CloudBase 加载已确认计划，支持开始、完成和“轻松 / 刚好 / 困难”难度反馈；任务写入由可信微信身份、用户归属校验、事务和请求 ID 重放保护。真实模型与 CloudBase 开发环境连通、真机验收和发布部署仍待外部环境验证。模型凭证与环境配置只保存在本地或云端，不会提交到 Git。

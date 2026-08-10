@@ -334,6 +334,57 @@
   font-size: 23rpx;
 }
 
+.edit-label {
+  display: block;
+  margin: 16rpx 0 6rpx;
+  color: #356f63;
+  font-size: 23rpx;
+  font-weight: 700;
+}
+
+.plan-edit-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 76rpx;
+  padding: 14rpx 16rpx;
+  border: 2rpx solid #d4c8ad;
+  border-radius: 12rpx;
+  background: #fffaf0;
+  color: #3f3a31;
+  font-size: 28rpx;
+}
+
+.plan-edit-area {
+  min-height: 100rpx;
+}
+
+.remove-task-button {
+  min-height: 76rpx;
+  margin: 22rpx 0 0;
+  border: 2rpx solid #9a927f;
+  border-radius: 12rpx;
+  background: transparent;
+  color: #625c52;
+  font-size: 26rpx;
+}
+
+.remove-task-button::after {
+  border: 0;
+}
+
+.remove-task-button[disabled] {
+  border-color: #d6cdb9;
+  color: #9a927f;
+}
+
+.confirm-plan-card {
+  margin-top: 24rpx;
+  padding: 28rpx;
+  border: 2rpx dashed #b9ad94;
+  border-radius: 18rpx;
+  background: rgba(255, 252, 243, 0.72);
+}
+
 .task-action {
   display: block;
   margin: 10rpx 0 18rpx;

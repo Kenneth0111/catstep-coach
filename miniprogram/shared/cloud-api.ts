@@ -6,6 +6,7 @@ import type {
   PlanPreview,
   PublicErrorCode,
 } from './goal-flow';
+import type { TodayPlan } from './today-flow';
 
 export interface CloudFunctionCaller {
   (options: { name: string; data: unknown }): Promise<{ result?: unknown }>;
@@ -30,6 +31,19 @@ interface ConfirmedGoalResult {
 interface DailyPlanResult {
   source: 'ai' | 'fallback' | 'repaired';
   plan: PlanPreview;
+}
+
+interface ConfirmedDailyPlanResult {
+  id: string;
+  date: string;
+}
+
+export interface PlanTaskUpdateInput {
+  requestId: string;
+  planId: string;
+  taskId: string;
+  action: 'start' | 'complete';
+  difficulty?: 'easy' | 'just_right' | 'hard';
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -124,6 +138,54 @@ function isPlanResult(
   return totalMinutes <= input.availableMinutes;
 }
 
+function isTodayPlan(value: unknown): value is TodayPlan {
+  if (
+    !isRecord(value) ||
+    !isText(value.id) ||
+    !isText(value.date) ||
+    !Number.isInteger(value.availableMinutes) ||
+    (value.availableMinutes as number) <= 0 ||
+    !isText(value.summary) ||
+    !Array.isArray(value.tasks) ||
+    value.tasks.length < 1 ||
+    value.tasks.length > 5
+  ) {
+    return false;
+  }
+
+  let totalMinutes = 0;
+  for (let index = 0; index < value.tasks.length; index += 1) {
+    const task = value.tasks[index];
+    if (
+      !isRecord(task) ||
+      !isText(task.id) ||
+      !isText(task.title) ||
+      !isText(task.action) ||
+      !Number.isInteger(task.estimatedMinutes) ||
+      (task.estimatedMinutes as number) <= 0 ||
+      !isText(task.doneCriteria) ||
+      !isText(task.goalId) ||
+      !isText(task.reason) ||
+      (task.difficulty !== 'easy' &&
+        task.difficulty !== 'medium' &&
+        task.difficulty !== 'hard') ||
+      !Number.isInteger(task.priority) ||
+      (task.priority as number) <= 0 ||
+      (task.status !== 'pending' &&
+        task.status !== 'in_progress' &&
+        task.status !== 'completed') ||
+      (task.difficultyFeedback !== undefined &&
+        task.difficultyFeedback !== 'easy' &&
+        task.difficultyFeedback !== 'just_right' &&
+        task.difficultyFeedback !== 'hard')
+    ) {
+      return false;
+    }
+    totalMinutes += task.estimatedMinutes as number;
+  }
+  return totalMinutes <= (value.availableMinutes as number);
+}
+
 function isPublicErrorCode(value: unknown): value is PublicErrorCode {
   return (
     value === 'UNAUTHENTICATED' ||
@@ -207,4 +269,67 @@ export async function requestDailyPlan(
     throw new CloudApiError('INTERNAL_ERROR');
   }
   return response.result as unknown as DailyPlanResult;
+}
+
+export async function confirmDailyPlan(
+  input: {
+    requestId: string;
+    availableMinutes: number;
+    plan: PlanPreview;
+  },
+  caller: CloudFunctionCaller = platformCaller,
+): Promise<ConfirmedDailyPlanResult> {
+  const response = await callCloudFunction('plan-confirm', input, caller);
+  if (
+    !isRecord(response.plan) ||
+    !isText(response.plan.id) ||
+    !isText(response.plan.date)
+  ) {
+    throw new CloudApiError('INTERNAL_ERROR');
+  }
+  return response.plan as unknown as ConfirmedDailyPlanResult;
+}
+
+export async function getTodayPlan(
+  caller: CloudFunctionCaller = platformCaller,
+): Promise<TodayPlan | null> {
+  const response = await callCloudFunction('plan-get-today', {}, caller);
+  if (response.plan === null) {
+    return null;
+  }
+  if (!isTodayPlan(response.plan)) {
+    throw new CloudApiError('INTERNAL_ERROR');
+  }
+  return response.plan;
+}
+
+export async function updatePlanTask(
+  input: PlanTaskUpdateInput,
+  caller: CloudFunctionCaller = platformCaller,
+): Promise<TodayPlan> {
+  const response = await callCloudFunction('plan-update-task', input, caller);
+  if (!isTodayPlan(response.plan) || !matchesTaskUpdate(input, response.plan)) {
+    throw new CloudApiError('INTERNAL_ERROR');
+  }
+  return response.plan;
+}
+
+function matchesTaskUpdate(
+  input: PlanTaskUpdateInput,
+  plan: TodayPlan,
+): boolean {
+  if (plan.id !== input.planId) {
+    return false;
+  }
+  const task = plan.tasks.find((candidate) => candidate.id === input.taskId);
+  if (!task) {
+    return false;
+  }
+  if (input.action === 'start') {
+    return task.status === 'in_progress' || task.status === 'completed';
+  }
+  return (
+    task.status === 'completed' &&
+    task.difficultyFeedback === input.difficulty
+  );
 }

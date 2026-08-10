@@ -2,31 +2,47 @@
   <view class="intro">
     <text class="eyebrow">今日计划</text>
     <text class="title">慢一点，也是在向前走</text>
-    <text class="summary">还剩 {{summary.remainingCount}} 项，约 {{summary.remainingMinutes}} 分钟</text>
+    <text class="summary" wx:if="{{flow.stage === 'ready'}}">还剩 {{flow.summary.remainingCount}} 项，约 {{flow.summary.remainingMinutes}} 分钟</text>
   </view>
 
-  <view class="section" wx:if="{{currentTask}}">
-    <text class="section-label">现在开始</text>
-    <task-card
-      task="{{currentTask}}"
-      primary="{{true}}"
-      bind:starttask="onStartTask"
-    />
+  <view class="state-card" wx:if="{{flow.stage === 'loading'}}">
+    <text class="state-title">正在翻开今天这一页…</text>
+    <text>稍等一下，猫猫正在找到你确认的计划。</text>
   </view>
 
-  <view class="empty-state" wx:else>
-    <text class="empty-title">今天的脚步都完成了</text>
-    <text>先休息一下，明天再继续。</text>
+  <view class="state-card" wx:if="{{flow.stage === 'empty'}}">
+    <text class="state-title">今天还没有确认计划</text>
+    <text>先把目标缩成一小步，再回来开始。</text>
+    <navigator class="state-action" url="/pages/goal/index" open-type="redirect">去制定计划</navigator>
   </view>
 
-  <view class="section" wx:if="{{nextTasks.length}}">
-    <text class="section-label">接下来</text>
-    <view class="task-list">
-      <task-card
-        wx:for="{{nextTasks}}"
-        wx:key="id"
-        task="{{item}}"
-      />
+  <view class="state-card error-state" wx:if="{{flow.stage === 'error'}}">
+    <text class="state-title">脚印停了一下</text>
+    <text>{{errorMessage}}</text>
+    <button class="state-action" bindtap="onRetry">再试一次</button>
+  </view>
+
+  <block wx:if="{{flow.stage === 'ready'}}">
+    <view class="state-card error-state" wx:if="{{flow.taskUpdateErrorCode}}">
+      <text>{{taskUpdateErrorMessage}}</text>
+      <button class="state-action" bindtap="onRetryTaskUpdate">重试刚才的操作</button>
     </view>
-  </view>
+
+    <view class="section" wx:if="{{flow.currentTask}}">
+      <text class="section-label">现在开始</text>
+      <task-card task="{{flow.currentTask}}" primary="{{true}}" updating="{{flow.taskUpdate !== null}}" bind:starttask="onStartTask" bind:completetask="onCompleteTask" />
+    </view>
+
+    <view class="empty-state" wx:else>
+      <text class="empty-title">今天的脚步都完成了</text>
+      <text>先休息一下，明天再继续。</text>
+    </view>
+
+    <view class="section" wx:if="{{flow.nextTasks.length}}">
+      <text class="section-label">接下来</text>
+      <view class="task-list">
+        <task-card wx:for="{{flow.nextTasks}}" wx:key="id" task="{{item}}" />
+      </view>
+    </view>
+  </block>
 </view>

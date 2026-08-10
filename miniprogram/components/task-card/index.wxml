@@ -4,14 +4,26 @@
     <view class="task-card__meta">
       <text>{{task.estimatedMinutes}} 分钟</text>
       <text wx:if="{{task.status === 'in_progress'}}" class="task-card__status">进行中</text>
+      <text wx:elif="{{task.status === 'completed'}}" class="task-card__status">已完成</text>
       <text wx:else class="task-card__status">待开始</text>
     </view>
   </view>
 
   <button
-    wx:if="{{primary}}"
+    wx:if="{{primary && task.status === 'pending'}}"
     class="task-card__button"
     hover-class="task-card__button--pressed"
+    disabled="{{updating}}"
     bindtap="onStart"
   >开始这一小步</button>
+
+  <view wx:if="{{primary && task.status === 'in_progress'}}" class="task-card__feedback">
+    <text>这一步的难度如何？</text>
+    <view class="task-card__choices">
+      <button data-difficulty="easy" disabled="{{updating}}" bindtap="onSelectDifficulty">容易</button>
+      <button data-difficulty="just_right" disabled="{{updating}}" bindtap="onSelectDifficulty">刚刚好</button>
+      <button data-difficulty="hard" disabled="{{updating}}" bindtap="onSelectDifficulty">有点难</button>
+    </view>
+    <button class="task-card__button" disabled="{{updating || !selectedDifficulty}}" bindtap="onComplete">完成这一小步</button>
+  </view>
 </view>

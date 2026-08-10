@@ -27,8 +27,8 @@ export function selectCurrentTask(
       .filter((task) => task.status !== 'completed')
       .sort(
         (left, right) =>
-          left.priority - right.priority ||
-          statusRank[left.status] - statusRank[right.status],
+          statusRank[left.status] - statusRank[right.status] ||
+          left.priority - right.priority,
       )[0] ?? null
   );
 }

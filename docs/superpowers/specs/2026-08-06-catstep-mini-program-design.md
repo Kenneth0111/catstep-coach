@@ -223,6 +223,7 @@ MVP 不包含手机号登录、付费会员、好友监督、公开社区、排�
 | `goal.confirm` | 保存用户确认的目标 |
 | `plan.generate` | 生成候选今日计划 |
 | `plan.confirm` | 校验并确认今日计划 |
+| `plan.getToday` | 读取当前用户当天已确认计划 |
 | `plan.updateTask` | 开始、完成、反馈或调整任务 |
 | `review.generate` | 生成复盘与记忆候选 |
 | `review.confirm` | 保存复盘和用户确认的记忆 |

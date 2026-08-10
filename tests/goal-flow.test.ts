@@ -3,14 +3,17 @@ import {
   GoalFlowError,
   beginGoalConfirmation,
   createGoalFlowState,
+  removePlanTask,
   markGoalConfirmed,
   receiveGoalStep,
   receivePlan,
+  restorePlanTaskInput,
   retryGoalFlow,
   selectAvailableMinutes,
   setGoalFlowError,
   startClarification,
   submitGoalAnswer,
+  updatePlanTask,
 } from '../miniprogram/shared/goal-flow';
 
 const summary = {
@@ -181,5 +184,131 @@ describe('goal onboarding flow', () => {
       pendingAction: 'nextStep',
       errorCode: null,
     });
+  });
+
+  it('edits a generated plan task within the selected time budget', () => {
+    const completed = receivePlan(
+      selectAvailableMinutes(
+        markGoalConfirmed(
+          beginGoalConfirmation(
+            receiveGoalStep(
+              startClarification(createGoalFlowState(), 'study', '学习'),
+              { kind: 'summary', summary },
+            ),
+          ),
+          'goal-1',
+        ),
+        30,
+      ),
+      plan,
+      'ai',
+    );
+
+    const edited = updatePlanTask(completed, 0, {
+      title: '完成三道重点练习',
+      action: '只完成最薄弱的三道题',
+      estimatedMinutes: 20,
+      doneCriteria: '三道题全部通过',
+    });
+
+    expect(edited.plan?.tasks[0]).toMatchObject({
+      title: '完成三道重点练习',
+      estimatedMinutes: 20,
+      goalId: 'goal-1',
+      reason: '巩固基础',
+    });
+  });
+
+  it('rejects edits that exceed the selected time budget', () => {
+    const completed = receivePlan(
+      selectAvailableMinutes(
+        markGoalConfirmed(
+          beginGoalConfirmation(
+            receiveGoalStep(
+              startClarification(createGoalFlowState(), 'study', '学习'),
+              { kind: 'summary', summary },
+            ),
+          ),
+          'goal-1',
+        ),
+        15,
+      ),
+      plan,
+      'ai',
+    );
+
+    expect(() =>
+      updatePlanTask(completed, 0, {
+        title: '超时任务',
+        action: '执行很久',
+        estimatedMinutes: 20,
+        doneCriteria: '完成',
+      }),
+    ).toThrow(new GoalFlowError('INVALID_INPUT'));
+  });
+
+  it('restores the persisted task value with a fresh stable render key after an invalid edit', () => {
+    const completed = receivePlan(
+      selectAvailableMinutes(
+        markGoalConfirmed(
+          beginGoalConfirmation(
+            receiveGoalStep(
+              startClarification(createGoalFlowState(), 'study', '学习'),
+              { kind: 'summary', summary },
+            ),
+          ),
+          'goal-1',
+        ),
+        30,
+      ),
+      plan,
+      'ai',
+    );
+
+    const originalTask = completed.plan?.tasks[0];
+    const restored = restorePlanTaskInput(completed, 0);
+
+    expect(restored.plan?.tasks[0]).toMatchObject({
+      title: originalTask?.title,
+      action: originalTask?.action,
+      estimatedMinutes: originalTask?.estimatedMinutes,
+      doneCriteria: originalTask?.doneCriteria,
+    });
+    expect(restored.plan?.tasks[0].clientKey).not.toBe(originalTask?.clientKey);
+  });
+
+  it('removes a plan task but keeps at least one task', () => {
+    const twoTaskPlan = {
+      ...plan,
+      tasks: [
+        ...plan.tasks,
+        { ...plan.tasks[0], title: '第二项', action: '完成第二项' },
+      ],
+    };
+    const completed = receivePlan(
+      selectAvailableMinutes(
+        markGoalConfirmed(
+          beginGoalConfirmation(
+            receiveGoalStep(
+              startClarification(createGoalFlowState(), 'study', '学习'),
+              { kind: 'summary', summary },
+            ),
+          ),
+          'goal-1',
+        ),
+        30,
+      ),
+      twoTaskPlan,
+      'ai',
+    );
+
+    expect(completed.plan?.tasks.map((task) => task.clientKey)).toEqual([
+      'plan-task-0',
+      'plan-task-1',
+    ]);
+    expect(removePlanTask(completed, 1).plan?.tasks).toHaveLength(1);
+    expect(() => removePlanTask(removePlanTask(completed, 1), 0)).toThrow(
+      new GoalFlowError('INVALID_TRANSITION'),
+    );
   });
 });

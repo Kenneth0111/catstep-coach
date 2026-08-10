@@ -42,7 +42,7 @@ describe('selectCurrentTask', () => {
     ).toBeNull();
   });
 
-  it('prefers an in-progress task when priority is tied', () => {
+  it('prefers an in-progress task before priority-ranked pending tasks', () => {
     const tiedTasks: TodayTask[] = [
       {
         id: 'pending',
@@ -56,7 +56,7 @@ describe('selectCurrentTask', () => {
         title: '继续当前任务',
         estimatedMinutes: 30,
         status: 'in_progress',
-        priority: 1,
+        priority: 2,
       },
     ];
 

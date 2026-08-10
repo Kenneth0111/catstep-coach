@@ -41,6 +41,7 @@ export type GoalStep =
   | { kind: 'summary'; summary: GoalSummary };
 
 export interface PlanTask {
+  clientKey?: string;
   title: string;
   action: string;
   estimatedMinutes: number;
@@ -259,8 +260,112 @@ export function receivePlan(
     stage: 'plan',
     busy: false,
     pendingAction: null,
-    plan,
+    plan: {
+      ...plan,
+      tasks: plan.tasks.map((task, index) => ({
+        ...task,
+        clientKey: `plan-task-${index}`,
+      })),
+    },
     source,
+  };
+}
+
+export function updatePlanTask(
+  state: GoalFlowState,
+  index: number,
+  update: Pick<
+    PlanTask,
+    'title' | 'action' | 'estimatedMinutes' | 'doneCriteria'
+  >,
+): GoalFlowState {
+  if (
+    state.stage !== 'plan' ||
+    state.busy ||
+    !state.plan ||
+    !Number.isInteger(index) ||
+    !state.plan.tasks[index]
+  ) {
+    return invalidTransition();
+  }
+  if (
+    !update.title.trim() ||
+    !update.action.trim() ||
+    !Number.isInteger(update.estimatedMinutes) ||
+    update.estimatedMinutes <= 0 ||
+    !update.doneCriteria.trim()
+  ) {
+    throw new GoalFlowError('INVALID_INPUT');
+  }
+
+  const tasks = state.plan.tasks.map((task, taskIndex) =>
+    taskIndex === index
+      ? {
+          ...task,
+          title: update.title.trim(),
+          action: update.action.trim(),
+          estimatedMinutes: update.estimatedMinutes,
+          doneCriteria: update.doneCriteria.trim(),
+        }
+      : task,
+  );
+  const totalMinutes = tasks.reduce(
+    (total, task) => total + task.estimatedMinutes,
+    0,
+  );
+  if (!state.availableMinutes || totalMinutes > state.availableMinutes) {
+    throw new GoalFlowError('INVALID_INPUT');
+  }
+
+  return { ...state, plan: { ...state.plan, tasks } };
+}
+
+export function removePlanTask(
+  state: GoalFlowState,
+  index: number,
+): GoalFlowState {
+  if (
+    state.stage !== 'plan' ||
+    state.busy ||
+    !state.plan ||
+    state.plan.tasks.length <= 1 ||
+    !Number.isInteger(index) ||
+    !state.plan.tasks[index]
+  ) {
+    return invalidTransition();
+  }
+  return {
+    ...state,
+    plan: {
+      ...state.plan,
+      tasks: state.plan.tasks.filter((_task, taskIndex) => taskIndex !== index),
+    },
+  };
+}
+
+export function restorePlanTaskInput(
+  state: GoalFlowState,
+  index: number,
+): GoalFlowState {
+  if (
+    state.stage !== 'plan' ||
+    state.busy ||
+    !state.plan ||
+    !Number.isInteger(index) ||
+    !state.plan.tasks[index]
+  ) {
+    return invalidTransition();
+  }
+  return {
+    ...state,
+    plan: {
+      ...state.plan,
+      tasks: state.plan.tasks.map((task, taskIndex) =>
+        taskIndex === index
+          ? { ...task, clientKey: `${task.clientKey ?? index}-restored` }
+          : task,
+      ),
+    },
   };
 }
 

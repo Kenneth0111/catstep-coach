@@ -10,6 +10,7 @@ const requiredFiles = [
   'miniprogram/app.wxss',
   'miniprogram/shared/cloud-api.ts',
   'miniprogram/shared/goal-flow.ts',
+  'miniprogram/shared/today-flow.ts',
   'miniprogram/pages/goal/index.ts',
   'miniprogram/pages/goal/index.json',
   'miniprogram/pages/goal/index.wxml',
@@ -69,13 +70,47 @@ describe('native Mini Program structure', () => {
     expect(markup).toContain('暂不安排');
   });
 
-  it('does not imply an unpersisted plan is available on Today', async () => {
+  it('edits and explicitly confirms the generated plan before Today', async () => {
     const markup = await readFile(
       resolve(process.cwd(), 'miniprogram/pages/goal/index.wxml'),
       'utf8',
     );
+    const source = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/goal/index.ts'),
+      'utf8',
+    );
 
     expect(markup).not.toContain('url="/pages/today/index"');
+    expect(markup).toContain('wx:key="clientKey"');
+    expect(markup).not.toContain('wx:key="title"');
+    expect(markup).toContain('bindblur="onPlanTaskEdit"');
+    expect(markup).toContain('bindtap="onRemovePlanTask"');
+    expect(markup).toContain('bindtap="onConfirmDailyPlan"');
+    expect(source).toContain('confirmDailyPlan');
+    expect(source).toContain('restorePlanTaskInput');
+    expect(source).toContain('wx.redirectTo');
+  });
+
+  it('loads Today from CloudBase with explicit page states and no sample tasks', async () => {
+    const markup = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/today/index.wxml'),
+      'utf8',
+    );
+    const source = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/today/index.ts'),
+      'utf8',
+    );
+
+    expect(markup).toContain("flow.stage === 'loading'");
+    expect(markup).toContain("flow.stage === 'empty'");
+    expect(markup).toContain("flow.stage === 'error'");
+    expect(markup).toContain("flow.stage === 'ready'");
+    expect(source).toContain('getTodayPlan');
+    expect(source).not.toContain('initialTasks');
+    expect(source).toContain('onStartTask');
+    expect(source).toContain('onCompleteTask');
+    expect(source).toContain('onRetryTaskUpdate');
+    expect(source).not.toContain('整理今天要完成的三个步骤');
   });
 
   it('uses no infinite motion on the calm onboarding page', async () => {
