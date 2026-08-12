@@ -23,6 +23,13 @@ export interface TodayPlan {
   tasks: TodayPlanTask[];
 }
 
+export interface TodayReview {
+  completionSummary: string;
+  encouragement: string;
+  nextSuggestion: string;
+  memoryCandidate: string | null;
+}
+
 export interface TodayFlowState {
   stage: 'loading' | 'empty' | 'ready' | 'error';
   plan: TodayPlan | null;
@@ -32,6 +39,9 @@ export interface TodayFlowState {
   errorCode: PublicErrorCode | null;
   taskUpdate: TodayTaskUpdate | null;
   taskUpdateErrorCode: PublicErrorCode | null;
+  reviewStage: 'idle' | 'loading' | 'ready' | 'confirming' | 'confirmed' | 'error';
+  review: TodayReview | null;
+  growthAwarded: number | null;
 }
 
 export interface TodayTaskUpdate {
@@ -55,6 +65,9 @@ function readyState(plan: TodayPlan): TodayFlowState {
     errorCode: null,
     taskUpdate: null,
     taskUpdateErrorCode: null,
+    reviewStage: 'idle',
+    review: null,
+    growthAwarded: null,
   };
 }
 
@@ -68,7 +81,53 @@ export function createTodayFlowState(): TodayFlowState {
     errorCode: null,
     taskUpdate: null,
     taskUpdateErrorCode: null,
+    reviewStage: 'idle',
+    review: null,
+    growthAwarded: null,
   };
+}
+
+export function beginTodayReview(state: TodayFlowState): TodayFlowState {
+  if (state.stage !== 'ready' || !state.plan || state.reviewStage !== 'idle') {
+    throw new Error('INVALID_TRANSITION');
+  }
+  return { ...state, reviewStage: 'loading' };
+}
+
+export function receiveTodayReview(
+  state: TodayFlowState,
+  review: TodayReview,
+): TodayFlowState {
+  if (state.reviewStage !== 'loading') {
+    throw new Error('INVALID_TRANSITION');
+  }
+  return { ...state, reviewStage: 'ready', review };
+}
+
+export function beginTodayReviewConfirmation(
+  state: TodayFlowState,
+): TodayFlowState {
+  if (state.reviewStage !== 'ready' || !state.review) {
+    throw new Error('INVALID_TRANSITION');
+  }
+  return { ...state, reviewStage: 'confirming' };
+}
+
+export function receiveTodayReviewConfirmation(
+  state: TodayFlowState,
+  review: { id: string; growthAwarded: number },
+): TodayFlowState {
+  if (state.reviewStage !== 'confirming') {
+    throw new Error('INVALID_TRANSITION');
+  }
+  return { ...state, reviewStage: 'confirmed', growthAwarded: review.growthAwarded };
+}
+
+export function retryTodayReview(state: TodayFlowState): TodayFlowState {
+  if (state.reviewStage !== 'error') {
+    throw new Error('INVALID_TRANSITION');
+  }
+  return { ...state, reviewStage: 'idle' };
 }
 
 export function receiveTodayPlan(

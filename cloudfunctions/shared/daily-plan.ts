@@ -15,10 +15,19 @@ export interface DailyPlan {
   tasks: DailyPlanTask[];
 }
 
+export interface DailyPlanGoalContext {
+  id: string;
+  title: string;
+  successCriteria: string;
+  currentProgress: string;
+  stage: string;
+}
+
 /** Trusted server-side context, not model output. */
 export interface DailyPlanConstraints {
   availableMinutes: number;
   goalIds: readonly string[];
+  goals?: readonly DailyPlanGoalContext[];
 }
 
 export type DailyPlanValidationCode =
@@ -28,7 +37,8 @@ export type DailyPlanValidationCode =
   | 'INVALID_DURATION'
   | 'TASK_COUNT'
   | 'TOTAL_DURATION'
-  | 'UNKNOWN_GOAL';
+  | 'UNKNOWN_GOAL'
+  | 'INTERNAL_ID_EXPOSED';
 
 export class DailyPlanValidationError extends Error {
   constructor(readonly code: DailyPlanValidationCode) {
@@ -130,6 +140,26 @@ export function validateDailyPlanStructure(
     )
   ) {
     throw new DailyPlanValidationError('UNKNOWN_GOAL');
+  }
+
+  const userVisibleText = [
+    candidate.summary,
+    ...candidate.tasks.flatMap((task) => {
+      const { title, action, doneCriteria, reason } = task as {
+        title: string;
+        action: string;
+        doneCriteria: string;
+        reason: string;
+      };
+      return [title, action, doneCriteria, reason];
+    }),
+  ];
+  if (
+    constraints.goalIds.some((goalId) =>
+      userVisibleText.some((text) => text.includes(goalId)),
+    )
+  ) {
+    throw new DailyPlanValidationError('INTERNAL_ID_EXPOSED');
   }
 
   const taskKeys = candidate.tasks.map((task) => {

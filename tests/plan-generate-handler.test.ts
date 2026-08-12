@@ -22,7 +22,15 @@ const plan = {
 function ownedRepository(): OwnedGoalRepository {
   return {
     async findActiveByIds() {
-      return [{ id: 'goal-1' }];
+      return [
+        {
+          id: 'goal-1',
+          title: '完成 TypeScript 入门练习',
+          successCriteria: '完成五道类型练习并全部通过',
+          currentProgress: '已学习基础类型',
+          stage: '巩固基础类型',
+        },
+      ];
     },
   };
 }

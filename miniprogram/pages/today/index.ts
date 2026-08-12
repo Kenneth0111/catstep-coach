@@ -1,13 +1,21 @@
 import {
   CloudApiError,
+  confirmTodayReview,
   getTodayPlan,
+  requestTodayReview,
+  resizeTodayTask,
   updatePlanTask,
 } from '../../shared/cloud-api';
 import {
   beginTodayTaskUpdate,
+  beginTodayReview,
+  beginTodayReviewConfirmation,
   createTodayFlowState,
   isCurrentTodayTaskUpdate,
   receiveTodayPlan,
+  receiveTodayReview,
+  receiveTodayReviewConfirmation,
+  retryTodayReview,
   receiveTodayTaskUpdate,
   retryTodayTaskUpdate,
   retryTodayFlow,
@@ -24,11 +32,27 @@ const errorMessages = {
   INTERNAL_ERROR: '今天的计划没有加载成功，再试一次就好。',
 } as const;
 
+const reviewErrorMessages = {
+  UNAUTHENTICATED: '请先使用已关联云环境的小程序账号。',
+  INVALID_CONTEXT: '无法为这份计划生成复盘，请确认它是今天已确认的计划。',
+  MISCONFIGURED: '复盘服务还没有配置好，请稍后再试。',
+  INTERNAL_ERROR: '复盘暂时无法生成，再试一次就好。',
+} as const;
+
+const reviewConfirmationErrorMessages = {
+  UNAUTHENTICATED: '请先使用已关联云环境的小程序账号。',
+  INVALID_CONTEXT: '这份复盘和今天的计划不匹配，请重新生成后再确认。',
+  MISCONFIGURED: '复盘保存服务还没有配置好，请稍后再试。',
+  INTERNAL_ERROR: '复盘确认没有保存成功，再试一次就好。',
+} as const;
+
 Page({
   data: {
     flow: createTodayFlowState(),
     errorMessage: '',
     taskUpdateErrorMessage: '',
+    reviewErrorMessage: '',
+    confirmMemory: false,
   },
 
   onLoad() {
@@ -63,6 +87,59 @@ Page({
       action: 'complete',
       difficulty: event.detail.difficulty,
     });
+  },
+
+  async onResizeTask(event: WechatMiniprogram.CustomEvent<{ taskId: string }>) {
+    await this.resizeTask(event.detail.taskId, 'resize');
+  },
+
+  async onMoveTaskToEnd(event: WechatMiniprogram.CustomEvent<{ taskId: string }>) {
+    await this.resizeTask(event.detail.taskId, 'move_to_end');
+  },
+
+  async onGenerateReview() {
+    const flow = beginTodayReview(this.data.flow);
+    this.setData({ flow, reviewErrorMessage: '' });
+    try {
+      const result = await requestTodayReview({ planId: flow.plan?.id ?? '' });
+      this.setData({ flow: receiveTodayReview(this.data.flow, result.review) });
+    } catch (error) {
+      const code = error instanceof CloudApiError ? error.code : 'INTERNAL_ERROR';
+      this.setData({
+        flow: { ...this.data.flow, reviewStage: 'error' },
+        reviewErrorMessage: reviewErrorMessages[code],
+      });
+    }
+  },
+
+  async onRetryReview() {
+    this.setData({ flow: retryTodayReview(this.data.flow), reviewErrorMessage: '' });
+    await this.onGenerateReview();
+  },
+
+  onMemoryChoice(event: WechatMiniprogram.CustomEvent<{ value: string[] }>) {
+    this.setData({ confirmMemory: event.detail.value.includes('confirm') });
+  },
+
+  async onConfirmReview() {
+    const flow = beginTodayReviewConfirmation(this.data.flow);
+    this.setData({ flow, reviewErrorMessage: '' });
+    try {
+      const review = flow.review;
+      const confirmed = await confirmTodayReview({
+        requestId: this.createRequestId(),
+        planId: flow.plan?.id ?? '',
+        review: review!,
+        confirmMemory: this.data.confirmMemory,
+      });
+      this.setData({ flow: receiveTodayReviewConfirmation(this.data.flow, confirmed) });
+    } catch (error) {
+      const code = error instanceof CloudApiError ? error.code : 'INTERNAL_ERROR';
+      this.setData({
+        flow: { ...this.data.flow, reviewStage: 'error' },
+        reviewErrorMessage: reviewConfirmationErrorMessages[code],
+      });
+    }
   },
 
   async onRetryTaskUpdate() {
@@ -112,6 +189,20 @@ Page({
         flow: setTodayTaskUpdateError(currentFlow, code, requestId),
         taskUpdateErrorMessage: errorMessages[code],
       });
+    }
+  },
+
+  async resizeTask(taskId: string, action: 'resize' | 'move_to_end') {
+    const planId = this.data.flow.plan?.id;
+    if (!planId || this.data.flow.taskUpdate !== null) {
+      return;
+    }
+    try {
+      const plan = await resizeTodayTask({ requestId: this.createRequestId(), planId, taskId, action });
+      this.setData({ flow: receiveTodayPlan(createTodayFlowState(), plan) });
+    } catch (error) {
+      const code = error instanceof CloudApiError ? error.code : 'INTERNAL_ERROR';
+      this.setData({ taskUpdateErrorMessage: errorMessages[code] });
     }
   },
 

@@ -118,4 +118,15 @@ describe('plan-update-task client boundary', () => {
     expect(card).toContain('disabled="{{updating || !selectedDifficulty}}"');
     expect(card).toContain('data-difficulty="just_right"');
   });
+
+  it('visibly marks the selected difficulty before completion', async () => {
+    const [card, styles] = await Promise.all([
+      readFile('miniprogram/components/task-card/index.wxml', 'utf8'),
+      readFile('miniprogram/components/task-card/index.wxss', 'utf8'),
+    ]);
+
+    expect(card).toContain('task-card__difficulty--selected');
+    expect(card).toContain("selectedDifficulty === 'easy'");
+    expect(styles).toContain('.task-card__difficulty--selected');
+  });
 });

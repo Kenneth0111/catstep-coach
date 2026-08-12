@@ -46,6 +46,16 @@ export interface PlanTaskUpdateInput {
   difficulty?: 'easy' | 'just_right' | 'hard';
 }
 
+export interface TodayReviewResult {
+  source: 'ai' | 'fallback';
+  review: {
+    completionSummary: string;
+    encouragement: string;
+    nextSuggestion: string;
+    memoryCandidate: string | null;
+  };
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -195,6 +205,15 @@ function isPublicErrorCode(value: unknown): value is PublicErrorCode {
   );
 }
 
+function isTodayReviewResult(value: unknown): value is TodayReviewResult {
+  if (!isRecord(value) || (value.source !== 'ai' && value.source !== 'fallback') || !isRecord(value.review)) {
+    return false;
+  }
+  const review = value.review;
+  return isText(review.completionSummary) && isText(review.encouragement) && isText(review.nextSuggestion) &&
+    (review.memoryCandidate === null || isText(review.memoryCandidate));
+}
+
 const platformCaller: CloudFunctionCaller = async (options) => {
   const callFunction = wx.cloud.callFunction as unknown as (request: {
     name: string;
@@ -312,6 +331,44 @@ export async function updatePlanTask(
     throw new CloudApiError('INTERNAL_ERROR');
   }
   return response.plan;
+}
+
+export async function requestTodayReview(
+  input: { planId: string },
+  caller: CloudFunctionCaller = platformCaller,
+): Promise<TodayReviewResult> {
+  const response = await callCloudFunction('review-generate', input, caller);
+  if (!isTodayReviewResult(response.result)) {
+    throw new CloudApiError('INTERNAL_ERROR');
+  }
+  return response.result as unknown as TodayReviewResult;
+}
+
+export async function confirmTodayReview(
+  input: {
+    requestId: string;
+    planId: string;
+    review: TodayReviewResult['review'];
+    confirmMemory: boolean;
+  },
+  caller: CloudFunctionCaller = platformCaller,
+): Promise<{ id: string; growthAwarded: number }> {
+  const response = await callCloudFunction('review-confirm', input, caller);
+  if (!isRecord(response.review) || !isText(response.review.id) || !Number.isInteger(response.review.growthAwarded) || (response.review.growthAwarded as number) < 0) {
+    throw new CloudApiError('INTERNAL_ERROR');
+  }
+  return response.review as unknown as { id: string; growthAwarded: number };
+}
+
+export async function resizeTodayTask(
+  input: { requestId: string; planId: string; taskId: string; action: 'resize' | 'move_to_end' },
+  caller: CloudFunctionCaller = platformCaller,
+): Promise<TodayPlan> {
+  const response = await callCloudFunction('plan-resize-task', input, caller);
+  if (!isRecord(response.result) || !isTodayPlan(response.result.plan)) {
+    throw new CloudApiError('INTERNAL_ERROR');
+  }
+  return response.result.plan;
 }
 
 function matchesTaskUpdate(

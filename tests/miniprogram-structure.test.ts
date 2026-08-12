@@ -113,6 +113,28 @@ describe('native Mini Program structure', () => {
     expect(source).not.toContain('整理今天要完成的三个步骤');
   });
 
+  it('retries failed review generation instead of only returning to its idle state', async () => {
+    const source = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/today/index.ts'),
+      'utf8',
+    );
+
+    expect(source).toContain('async onRetryReview()');
+    expect(source).toContain('await this.onGenerateReview();');
+    expect(source).toContain('const reviewErrorMessages');
+    expect(source).toContain('复盘暂时无法生成');
+  });
+
+  it('keeps a failed review confirmation distinct from a failed review generation', async () => {
+    const source = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/today/index.ts'),
+      'utf8',
+    );
+
+    expect(source).toContain('const reviewConfirmationErrorMessages');
+    expect(source).toContain('复盘确认没有保存成功');
+  });
+
   it('uses no infinite motion on the calm onboarding page', async () => {
     const styles = await readFile(
       resolve(process.cwd(), 'miniprogram/pages/goal/index.wxss'),

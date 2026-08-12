@@ -25,6 +25,7 @@ export interface TokenHubProviderOptions {
   model: string;
   baseUrl?: string;
   timeoutMs?: number;
+  requestOptions?: Record<string, unknown>;
   fetch?: typeof fetch;
   buildMessages(
     request: StructuredGenerationRequest,
@@ -73,6 +74,7 @@ export function createTokenHubProvider(
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
+            ...options.requestOptions,
             model: options.model,
             messages: options.buildMessages(request),
             stream: false,

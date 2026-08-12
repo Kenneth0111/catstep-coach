@@ -18,6 +18,30 @@ export class DailyPlanGenerationError extends Error {
   }
 }
 
+function getDiagnosticCode(error: unknown): string {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    typeof error.code === 'string'
+  ) {
+    return error.code;
+  }
+
+  return 'UNKNOWN_ERROR';
+}
+
+function logFallback(
+  stage: 'provider_unavailable' | 'repair_unavailable' | 'repair_invalid',
+  error: unknown,
+): void {
+  console.warn('daily_plan_fallback', {
+    workflow: 'generateDailyPlan',
+    stage,
+    code: getDiagnosticCode(error),
+  });
+}
+
 function createFallbackResult(
   input: DailyPlanConstraints,
 ): DailyPlanGenerationResult {
@@ -65,7 +89,8 @@ export async function generateDailyPlan(
   } catch {
     try {
       candidate = await provider.generateStructured(request);
-    } catch {
+    } catch (retryError) {
+      logFallback('provider_unavailable', retryError);
       return createFallbackResult(input);
     }
   }
@@ -89,7 +114,8 @@ export async function generateDailyPlan(
           validationCode: error.code,
         },
       });
-    } catch {
+    } catch (repairRequestError) {
+      logFallback('repair_unavailable', repairRequestError);
       return createFallbackResult(input);
     }
 
@@ -100,6 +126,7 @@ export async function generateDailyPlan(
       };
     } catch (repairError) {
       if (repairError instanceof DailyPlanValidationError) {
+        logFallback('repair_invalid', repairError);
         return createFallbackResult(input);
       }
       throw repairError;

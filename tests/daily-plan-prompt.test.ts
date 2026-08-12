@@ -18,6 +18,7 @@ describe('daily plan prompt', () => {
     expect(messages[0]?.content).toContain('1–5');
     expect(messages[0]?.content).toContain('estimatedMinutes');
     expect(messages[0]?.content).toContain('goalId');
+    expect(messages[0]?.content).toContain('用户可见');
     expect(messages[0]?.content).toContain('availableMinutes');
     expect(messages[1]?.content).toContain('daily-plan-v1');
     expect(messages[1]?.content).toContain('goal-study');

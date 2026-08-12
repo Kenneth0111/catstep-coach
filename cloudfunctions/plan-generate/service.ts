@@ -9,11 +9,19 @@ export interface PlanGenerationInput {
   goalIds: string[];
 }
 
+export interface OwnedGoal {
+  id: string;
+  title: string;
+  successCriteria: string;
+  currentProgress: string;
+  stage: string;
+}
+
 export interface OwnedGoalRepository {
   findActiveByIds(
     openid: string,
     goalIds: readonly string[],
-  ): Promise<Array<{ id: string }>>;
+  ): Promise<OwnedGoal[]>;
 }
 
 export class PlanGenerationServiceError extends Error {
@@ -61,10 +69,18 @@ export async function generateOwnedDailyPlan(
   }
 
   const ownedGoals = await repository.findActiveByIds(openid, input.goalIds);
-  const ownedIds = new Set(ownedGoals.map((goal) => goal.id));
-  if (input.goalIds.some((goalId) => !ownedIds.has(goalId))) {
+  const ownedGoalsById = new Map(ownedGoals.map((goal) => [goal.id, goal]));
+  if (input.goalIds.some((goalId) => !ownedGoalsById.has(goalId))) {
     throw new PlanGenerationServiceError('INVALID_CONTEXT');
   }
 
-  return generateDailyPlan(input, createProvider());
+  const goals = input.goalIds.map((goalId) => {
+    const goal = ownedGoalsById.get(goalId);
+    if (!goal) {
+      throw new PlanGenerationServiceError('INVALID_CONTEXT');
+    }
+    return goal;
+  });
+
+  return generateDailyPlan({ ...input, goals }, createProvider());
 }

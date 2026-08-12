@@ -34,6 +34,16 @@ Component({
       const task = this.properties.task as TodayTask;
       this.triggerEvent('starttask', { taskId: task.id });
     },
+    onResize() {
+      if (!this.properties.updating) {
+        this.triggerEvent('resizetask', { taskId: (this.properties.task as TodayTask).id });
+      }
+    },
+    onMoveToEnd() {
+      if (!this.properties.updating) {
+        this.triggerEvent('movetasktoend', { taskId: (this.properties.task as TodayTask).id });
+      }
+    },
     onSelectDifficulty(
       event: WechatMiniprogram.CustomEvent<{
         difficulty: 'easy' | 'just_right' | 'hard';

@@ -184,6 +184,20 @@ describe('validateDailyPlanStructure', () => {
     ).toThrow(new DailyPlanValidationError('UNKNOWN_GOAL'));
   });
 
+  it('rejects an internal goal ID in user-visible task text', () => {
+    const task = {
+      ...validCandidate.tasks[0],
+      action: '回顾目标 goal-1，并写下下一步。',
+    };
+
+    expect(() =>
+      validateDailyPlanStructure(
+        { ...validCandidate, tasks: [task] },
+        { availableMinutes: 60, goalIds: ['goal-1'] },
+      ),
+    ).toThrow(new DailyPlanValidationError('INTERNAL_ID_EXPOSED'));
+  });
+
   it('rejects duplicate tasks with the same normalized title and action', () => {
     const duplicate = {
       ...validCandidate.tasks[0],

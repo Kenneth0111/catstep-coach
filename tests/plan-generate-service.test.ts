@@ -24,7 +24,13 @@ const validPlan = {
 function repository(ids: string[]): OwnedGoalRepository {
   return {
     async findActiveByIds() {
-      return ids.map((id) => ({ id }));
+      return ids.map((id) => ({
+        id,
+        title: '完成 TypeScript 入门练习',
+        successCriteria: '完成五道类型练习并全部通过',
+        currentProgress: '已学习基础类型',
+        stage: '巩固基础类型',
+      }));
     },
   };
 }
@@ -45,6 +51,48 @@ describe('generateOwnedDailyPlan', () => {
       ),
     ).resolves.toEqual({ source: 'ai', plan: validPlan });
     expect(createProvider).toHaveBeenCalledTimes(1);
+  });
+
+  it('gives the provider verified goal details instead of only internal IDs', async () => {
+    const provider: AIProvider = {
+      generateStructured: vi.fn(async () => validPlan),
+    };
+    const ownedGoals: OwnedGoalRepository = {
+      async findActiveByIds() {
+        return [
+          {
+            id: 'goal-1',
+            title: '完成 TypeScript 入门练习',
+            successCriteria: '完成五道类型练习并全部通过',
+            currentProgress: '已学习基础类型',
+            stage: '巩固基础类型',
+          },
+        ];
+      },
+    };
+
+    await generateOwnedDailyPlan(
+      'user-1',
+      { availableMinutes: 45, goalIds: ['goal-1'] },
+      ownedGoals,
+      () => provider,
+    );
+
+    expect(provider.generateStructured).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({
+          goals: [
+            {
+              id: 'goal-1',
+              title: '完成 TypeScript 入门练习',
+              successCriteria: '完成五道类型练习并全部通过',
+              currentProgress: '已学习基础类型',
+              stage: '巩固基础类型',
+            },
+          ],
+        }),
+      }),
+    );
   });
 
   it('rejects a missing or foreign goal before creating a provider', async () => {
