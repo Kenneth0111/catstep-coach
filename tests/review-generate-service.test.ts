@@ -48,4 +48,61 @@ describe('generateOwnedReview', () => {
       expect.objectContaining({ workflow: 'generateReview' }),
     );
   });
+
+  it('gives the single review request a ten second timeout budget', async () => {
+    const provider: AIProvider = {
+      generateStructured: vi.fn(async () => review),
+    };
+    const createProvider = vi.fn(() => provider);
+
+    await generateOwnedReview(
+      'user-1',
+      { planId: 'plan-1' },
+      repository(),
+      createProvider,
+    );
+
+    expect(createProvider).toHaveBeenCalledWith({ timeoutMs: 10_000 });
+  });
+
+  it('logs a safe provider error code when review generation falls back', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const provider: AIProvider = {
+      generateStructured: vi.fn(async () => {
+        throw Object.assign(new Error('secret upstream response'), {
+          code: 'NETWORK_ERROR',
+        });
+      }),
+    };
+
+    await expect(
+      generateOwnedReview('user-1', { planId: 'plan-1' }, repository(), () => provider),
+    ).resolves.toMatchObject({ source: 'fallback' });
+
+    expect(warn).toHaveBeenCalledWith('review_generate_fallback', {
+      workflow: 'generateReview',
+      stage: 'provider_unavailable',
+      code: 'NETWORK_ERROR',
+    });
+    expect(JSON.stringify(warn.mock.calls)).not.toContain('secret upstream response');
+    warn.mockRestore();
+  });
+
+  it('distinguishes an invalid AI review from a provider failure', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const provider: AIProvider = {
+      generateStructured: vi.fn(async () => ({ memoryCandidate: null })),
+    };
+
+    await expect(
+      generateOwnedReview('user-1', { planId: 'plan-1' }, repository(), () => provider),
+    ).resolves.toMatchObject({ source: 'fallback' });
+
+    expect(warn).toHaveBeenCalledWith('review_generate_fallback', {
+      workflow: 'generateReview',
+      stage: 'invalid_response',
+      code: 'INVALID_RESPONSE',
+    });
+    warn.mockRestore();
+  });
 });

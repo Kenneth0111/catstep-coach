@@ -157,7 +157,7 @@ describe('TokenHub AI provider', () => {
     });
 
     await expect(provider.generateStructured(request)).rejects.toMatchObject({
-      code: 'NETWORK_ERROR',
+      code: 'TIMEOUT_ERROR',
     });
   });
 
@@ -190,7 +190,7 @@ describe('TokenHub AI provider', () => {
     });
 
     await expect(provider.generateStructured(request)).rejects.toMatchObject({
-      code: 'NETWORK_ERROR',
+      code: 'TIMEOUT_ERROR',
     });
   });
 

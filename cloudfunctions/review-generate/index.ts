@@ -62,11 +62,12 @@ exports.main = (event: unknown, context: unknown) =>
     getOpenid: (cloudContext) =>
       cloudbase.getCloudbaseContext(cloudContext).WX_OPENID,
     createRepository,
-    createProvider: () =>
+    createProvider: ({ timeoutMs }) =>
       createTokenHubProvider({
         apiKey: process.env.TOKENHUB_API_KEY ?? '',
         model: process.env.TOKENHUB_MODEL ?? '',
         baseUrl: process.env.TOKENHUB_BASE_URL,
+        timeoutMs,
         buildMessages: buildReviewMessages,
       }),
   });

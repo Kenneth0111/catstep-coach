@@ -2,13 +2,14 @@ import type { AIProvider } from '../shared/ai-provider';
 import {
   ReviewGenerationServiceError,
   generateOwnedReview,
+  type ReviewProviderOptions,
   type OwnedTodayPlanRepository,
 } from './service';
 
 export interface ReviewGenerateDependencies {
   getOpenid(context: unknown): string | undefined;
   createRepository(): OwnedTodayPlanRepository;
-  createProvider(): AIProvider;
+  createProvider(options: ReviewProviderOptions): AIProvider;
 }
 
 export async function handleReviewGenerate(

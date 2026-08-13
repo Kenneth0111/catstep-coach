@@ -32,6 +32,12 @@ export interface ReviewGenerationResult {
   review: GeneratedReview;
 }
 
+export interface ReviewProviderOptions {
+  timeoutMs: number;
+}
+
+export const REVIEW_REQUEST_TIMEOUT_MS = 10_000;
+
 export class ReviewGenerationServiceError extends Error {
   constructor(readonly code: 'INVALID_CONTEXT') {
     super(code);
@@ -71,11 +77,35 @@ function fallbackReview(plan: OwnedTodayPlan): GeneratedReview {
   };
 }
 
+function getDiagnosticCode(error: unknown): string {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    typeof error.code === 'string'
+  ) {
+    return error.code;
+  }
+
+  return 'UNKNOWN_ERROR';
+}
+
+function logFallback(
+  stage: 'provider_unavailable' | 'invalid_response',
+  error: unknown,
+): void {
+  console.warn('review_generate_fallback', {
+    workflow: 'generateReview',
+    stage,
+    code: getDiagnosticCode(error),
+  });
+}
+
 export async function generateOwnedReview(
   openid: string,
   input: unknown,
   repository: OwnedTodayPlanRepository,
-  createProvider: () => AIProvider,
+  createProvider: (options: ReviewProviderOptions) => AIProvider,
 ): Promise<ReviewGenerationResult> {
   if (
     !openid.trim() ||
@@ -93,8 +123,11 @@ export async function generateOwnedReview(
     throw new ReviewGenerationServiceError('INVALID_CONTEXT');
   }
 
+  let candidate: unknown;
   try {
-    const candidate = await createProvider().generateStructured({
+    candidate = await createProvider({
+      timeoutMs: REVIEW_REQUEST_TIMEOUT_MS,
+    }).generateStructured({
       workflow: 'generateReview',
       promptVersion: 'review-v1',
       input: {
@@ -103,11 +136,15 @@ export async function generateOwnedReview(
         tasks: plan.tasks,
       },
     });
-    if (!isReview(candidate)) {
-      throw new Error('INVALID_REVIEW');
-    }
-    return { source: 'ai', review: candidate };
-  } catch {
+  } catch (error) {
+    logFallback('provider_unavailable', error);
     return { source: 'fallback', review: fallbackReview(plan) };
   }
+
+  if (!isReview(candidate)) {
+    logFallback('invalid_response', { code: 'INVALID_RESPONSE' });
+    return { source: 'fallback', review: fallbackReview(plan) };
+  }
+
+  return { source: 'ai', review: candidate };
 }
