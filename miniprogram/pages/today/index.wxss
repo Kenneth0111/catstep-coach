@@ -107,3 +107,16 @@
 .error-state {
   border-color: #d5a63f;
 }
+
+.review-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  margin-top: 24rpx;
+  padding: 32rpx;
+  border: 2rpx solid #d5a63f;
+  border-radius: 16rpx;
+  background: #fffaf0;
+  color: #625c52;
+  line-height: 1.6;
+}

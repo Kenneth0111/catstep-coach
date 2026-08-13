@@ -10,6 +10,7 @@ export interface TokenHubChatMessage {
 
 type TokenHubProviderErrorCode =
   | 'NETWORK_ERROR'
+  | 'TIMEOUT_ERROR'
   | 'HTTP_ERROR'
   | 'INVALID_RESPONSE';
 
@@ -25,6 +26,7 @@ export interface TokenHubProviderOptions {
   model: string;
   baseUrl?: string;
   timeoutMs?: number;
+  requestOptions?: Record<string, unknown>;
   fetch?: typeof fetch;
   buildMessages(
     request: StructuredGenerationRequest,
@@ -73,6 +75,7 @@ export function createTokenHubProvider(
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
+            ...options.requestOptions,
             model: options.model,
             messages: options.buildMessages(request),
             stream: false,
@@ -89,7 +92,7 @@ export function createTokenHubProvider(
         } catch {
           throw new TokenHubProviderError(
             controller.signal.aborted
-              ? 'NETWORK_ERROR'
+              ? 'TIMEOUT_ERROR'
               : 'INVALID_RESPONSE',
           );
         }
@@ -108,7 +111,9 @@ export function createTokenHubProvider(
         if (error instanceof TokenHubProviderError) {
           throw error;
         }
-        throw new TokenHubProviderError('NETWORK_ERROR');
+        throw new TokenHubProviderError(
+          controller.signal.aborted ? 'TIMEOUT_ERROR' : 'NETWORK_ERROR',
+        );
       } finally {
         clearTimeout(timeout);
       }

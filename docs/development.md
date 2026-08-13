@@ -40,6 +40,9 @@ npm.cmd run build --prefix cloudfunctions/plan-generate
 npm.cmd run build --prefix cloudfunctions/plan-confirm
 npm.cmd run build --prefix cloudfunctions/plan-get-today
 npm.cmd run build --prefix cloudfunctions/plan-update-task
+npm.cmd run build --prefix cloudfunctions/review-generate
+npm.cmd run build --prefix cloudfunctions/review-confirm
+npm.cmd run build --prefix cloudfunctions/plan-resize-task
 ```
 
 编译产物位于各云函数的 `dist/`，不会提交到 Git。
@@ -85,7 +88,7 @@ git check-ignore project.private.config.json
 - `TOKENHUB_MODEL`：已在 TokenHub 开通且符合发布要求的模型 ID，必填。
 - `TOKENHUB_BASE_URL`：可选，默认使用境内地址 `https://tokenhub.tencentmaas.com/v1`。
 
-不要把真实值写进仓库。单次模型请求（包含响应体读取）在 5 秒后中止；工作流最多执行首次请求、一次重试和一次结构修复，总模型等待不超过 15 秒。部署时使用 Node.js 20，并把两个 AI 云函数的超时设置为至少 20 秒。上述 AI 环境变量只用于 `goal-next-step` 和 `plan-generate` 两个 AI 云函数。`plan-confirm`、`plan-get-today` 和 `plan-update-task` 三个 Day 3 云函数不需要硬编码环境 ID 或 AI 环境变量；它们使用可信 `WX_OPENID` 和当前 CloudBase 环境执行用户隔离的计划读写。本地自动测试使用假的 HTTP 边界，不会调用 TokenHub 或消耗额度。
+不要把真实值写进仓库。默认单次模型请求（包含响应体读取）在 5 秒后中止；工作流最多执行首次请求、一次重试和一次结构修复，总模型等待不超过 15 秒。若 `plan-generate` 的 `TOKENHUB_BASE_URL` 指向 `api.deepseek.com`，它会显式关闭思考模式，并把单次请求上限调为 8 秒，以适配直连 DeepSeek 的响应延迟；计划工作流最多发起两次模型请求，仍低于 20 秒云函数超时。规则降级时云函数日志会记录 `daily_plan_fallback`、失败阶段和错误码，不记录提示词、响应正文或密钥。部署时使用 Node.js 20，并把两个 AI 云函数的超时设置为至少 20 秒。上述 AI 环境变量只用于 `goal-next-step` 和 `plan-generate` 两个 AI 云函数。`plan-confirm`、`plan-get-today` 和 `plan-update-task` 三个 Day 3 云函数不需要硬编码环境 ID 或 AI 环境变量；它们使用可信 `WX_OPENID` 和当前 CloudBase 环境执行用户隔离的计划读写。本地自动测试使用假的 HTTP 边界，不会调用 TokenHub 或消耗额度。
 
 目标引导页会依次调用三个 Day 2 云函数。`goal-confirm` 把用户确认的目标写入 `goals` 集合；`plan-generate` 只为当前微信身份拥有的活动目标生成计划。用户可在本地编辑或删除计划预览任务，再通过 `plan-confirm` 明确确认；服务端为同一用户的同一上海自然日原子地返回或创建一份计划。`plan-get-today` 只读取当前用户的已确认计划，`plan-update-task` 只更新当前用户拥有的计划任务。
 

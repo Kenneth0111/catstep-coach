@@ -60,3 +60,10 @@
   background: #2d5e54;
   transform: translateY(2rpx);
 }
+
+.task-card__difficulty--selected {
+  border-color: #356f63;
+  background: #dcece4;
+  color: #24594e;
+  font-weight: 700;
+}

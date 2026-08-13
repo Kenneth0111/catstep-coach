@@ -74,6 +74,31 @@ describe('TokenHub AI provider', () => {
     expect(body.messages[1]?.content).toContain('goal-clarification-v1');
   });
 
+  it('includes explicitly configured provider request options', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content: '{"kind":"question"}' } }],
+        }),
+        { status: 200 },
+      ),
+    );
+    const provider = createTokenHubProvider({
+      apiKey: 'secret',
+      model: 'deepseek-v4-flash',
+      fetch: fetchMock,
+      buildMessages: buildGoalClarificationMessages,
+      requestOptions: { thinking: { type: 'disabled' } },
+    });
+
+    await provider.generateStructured(request);
+
+    const options = fetchMock.mock.calls[0]?.[1];
+    expect(JSON.parse(String(options?.body))).toMatchObject({
+      thinking: { type: 'disabled' },
+    });
+  });
+
   it('uses a configured TokenHub base URL without duplicating slashes', async () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
       new Response(
@@ -132,7 +157,7 @@ describe('TokenHub AI provider', () => {
     });
 
     await expect(provider.generateStructured(request)).rejects.toMatchObject({
-      code: 'NETWORK_ERROR',
+      code: 'TIMEOUT_ERROR',
     });
   });
 
@@ -165,7 +190,7 @@ describe('TokenHub AI provider', () => {
     });
 
     await expect(provider.generateStructured(request)).rejects.toMatchObject({
-      code: 'NETWORK_ERROR',
+      code: 'TIMEOUT_ERROR',
     });
   });
 

@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   beginTodayTaskUpdate,
+  beginTodayReview,
+  beginTodayReviewConfirmation,
   createTodayFlowState,
+  receiveTodayReview,
+  receiveTodayReviewConfirmation,
   receiveTodayPlan,
   retryTodayFlow,
   setTodayFlowError,
@@ -30,6 +34,25 @@ const plan: TodayPlan = {
 };
 
 describe('Today loading flow', () => {
+  it('moves from review generation to confirmation and exposes awarded growth', () => {
+    const ready = receiveTodayPlan(createTodayFlowState(), plan);
+    const reviewing = beginTodayReview(ready);
+    const review = receiveTodayReview(reviewing, {
+      completionSummary: '今天完成了 1 项任务。',
+      encouragement: '你已经把计划落到了实处。',
+      nextSuggestion: '明天先用 15 分钟复习。',
+      memoryCandidate: '短时练习更容易开始。',
+    });
+    const confirming = beginTodayReviewConfirmation(review);
+    const confirmed = receiveTodayReviewConfirmation(confirming, {
+      id: 'review-1',
+      growthAwarded: 10,
+    });
+
+    expect(review).toMatchObject({ reviewStage: 'ready' });
+    expect(confirmed).toMatchObject({ reviewStage: 'confirmed', growthAwarded: 10 });
+  });
+
   it('starts loading and derives the ready view from a persisted plan', () => {
     const loading = createTodayFlowState();
     const ready = receiveTodayPlan(loading, plan);

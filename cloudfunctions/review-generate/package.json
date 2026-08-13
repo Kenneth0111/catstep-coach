@@ -1,0 +1,12 @@
+{
+  "name": "review-generate",
+  "private": true,
+  "version": "1.0.0",
+  "main": "dist/review-generate/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@cloudbase/node-sdk": "3.18.3"
+  }
+}

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   DailyPlanGenerationError,
   generateDailyPlan,
@@ -199,6 +199,38 @@ describe('generateDailyPlan', () => {
         plan: { tasks: [{ goalId: 'goal-1', estimatedMinutes: 10 }] },
       },
     });
+  });
+
+  it('records a safe diagnostic when provider retries are exhausted', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const provider = {
+      generateStructured: async () => {
+        const failure = Object.assign(new Error('provider-secret-detail'), {
+          code: 'HTTP_ERROR',
+        });
+        throw failure;
+      },
+    };
+
+    try {
+      await expect(
+        generateDailyPlan(
+          { availableMinutes: 60, goalIds: ['goal-1'] },
+          provider,
+        ),
+      ).resolves.toMatchObject({ source: 'fallback' });
+
+      expect(warn).toHaveBeenCalledWith('daily_plan_fallback', {
+        workflow: 'generateDailyPlan',
+        stage: 'provider_unavailable',
+        code: 'HTTP_ERROR',
+      });
+      expect(JSON.stringify(warn.mock.calls)).not.toContain(
+        'provider-secret-detail',
+      );
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it('caps the fallback task to the available time', async () => {

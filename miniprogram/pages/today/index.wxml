@@ -30,12 +30,21 @@
 
     <view class="section" wx:if="{{flow.currentTask}}">
       <text class="section-label">现在开始</text>
-      <task-card task="{{flow.currentTask}}" primary="{{true}}" updating="{{flow.taskUpdate !== null}}" bind:starttask="onStartTask" bind:completetask="onCompleteTask" />
+      <task-card task="{{flow.currentTask}}" primary="{{true}}" updating="{{flow.taskUpdate !== null}}" bind:starttask="onStartTask" bind:completetask="onCompleteTask" bind:resizetask="onResizeTask" bind:movetasktoend="onMoveTaskToEnd" />
     </view>
 
     <view class="empty-state" wx:else>
       <text class="empty-title">今天的脚步都完成了</text>
       <text>先休息一下，明天再继续。</text>
+      <button wx:if="{{flow.reviewStage === 'idle'}}" class="state-action" bindtap="onGenerateReview">写下今天的复盘</button>
+      <view wx:if="{{flow.reviewStage === 'loading'}}" class="review-card"><text>猫猫正在整理今天的脚印…</text></view>
+      <view wx:if="{{flow.reviewStage === 'ready'}}" class="review-card">
+        <text>{{flow.review.completionSummary}}</text><text>{{flow.review.encouragement}}</text><text>{{flow.review.nextSuggestion}}</text>
+        <checkbox-group bindchange="onMemoryChoice" wx:if="{{flow.review.memoryCandidate}}"><label><checkbox value="confirm" checked="{{confirmMemory}}" />确认记住：{{flow.review.memoryCandidate}}</label></checkbox-group>
+        <button class="state-action" bindtap="onConfirmReview">确认这份复盘</button>
+      </view>
+      <view wx:if="{{flow.reviewStage === 'confirmed'}}" class="review-card"><text>复盘已收好，获得 {{flow.growthAwarded}} 点成长值。</text></view>
+      <view wx:if="{{flow.reviewStage === 'error'}}" class="review-card error-state"><text>{{reviewErrorMessage}}</text><button class="state-action" bindtap="onRetryReview">再试一次</button></view>
     </view>
 
     <view class="section" wx:if="{{flow.nextTasks.length}}">

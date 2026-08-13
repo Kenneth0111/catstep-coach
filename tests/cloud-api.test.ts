@@ -6,10 +6,31 @@ import {
   getTodayPlan,
   requestDailyPlan,
   requestGoalNextStep,
+  requestTodayReview,
   type CloudFunctionCaller,
 } from '../miniprogram/shared/cloud-api';
 
 describe('Mini Program CloudBase API boundary', () => {
+  it('requests a structured review for the selected Today plan', async () => {
+    const caller = vi.fn(async () => ({
+      result: {
+        ok: true,
+        result: {
+          source: 'fallback',
+          review: {
+            completionSummary: '今天完成了 1 项任务。',
+            encouragement: '你已经把计划落到了实处。',
+            nextSuggestion: '明天先用 15 分钟复习。',
+            memoryCandidate: null,
+          },
+        },
+      },
+    })) satisfies CloudFunctionCaller;
+
+    await expect(requestTodayReview({ planId: 'plan-1' }, caller)).resolves.toMatchObject({ source: 'fallback' });
+    expect(caller).toHaveBeenCalledWith({ name: 'review-generate', data: { planId: 'plan-1' } });
+  });
+
   it('calls goal-next-step with the exact clarification input', async () => {
     const input = { type: 'study' as const, title: '学习测试', answers: [] };
     const caller = vi.fn(async () => ({
