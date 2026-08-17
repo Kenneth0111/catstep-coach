@@ -14,6 +14,7 @@ const cloudbase = require('@cloudbase/node-sdk') as {
   init(options: { env: string }): {
     database(): {
       command: { in(values: readonly string[]): unknown };
+      runTransaction<T>(update: (transaction: any) => Promise<T>): Promise<T | { result: T }>;
       collection(name: string): {
         where(query: Record<string, unknown>): {
           get(): Promise<{ data: StoredGoal[] }>;
@@ -26,9 +27,11 @@ const cloudbase = require('@cloudbase/node-sdk') as {
 const { handlePlanGenerate } = require('./handler') as typeof import('./handler');
 const { buildDailyPlanMessages } = require('./prompt') as typeof import('./prompt');
 const { createTokenHubProvider } = require('../shared/tokenhub-provider') as typeof import('../shared/tokenhub-provider');
+const { createCloudbaseQuotaClaimer } = require('../shared/cloudbase-ai-quota') as typeof import('../shared/cloudbase-ai-quota');
 
 const app = cloudbase.init({ env: cloudbase.SYMBOL_CURRENT_ENV });
 const database = app.database();
+const claimQuota = createCloudbaseQuotaClaimer(database, () => new Date());
 const goals = database.collection('goals');
 
 function isDeepSeekBaseUrl(baseUrl: string | undefined): boolean {
@@ -83,4 +86,5 @@ exports.main = (event: unknown, context: unknown) =>
         buildMessages: buildDailyPlanMessages,
       });
     },
+    claimQuota,
   });

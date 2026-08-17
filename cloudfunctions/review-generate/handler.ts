@@ -5,11 +5,13 @@ import {
   type ReviewProviderOptions,
   type OwnedTodayPlanRepository,
 } from './service';
+import { isAiQuotaError } from '../shared/ai-quota';
 
 export interface ReviewGenerateDependencies {
   getOpenid(context: unknown): string | undefined;
   createRepository(): OwnedTodayPlanRepository;
   createProvider(options: ReviewProviderOptions): AIProvider;
+  claimQuota(openid: string): Promise<void>;
 }
 
 export async function handleReviewGenerate(
@@ -28,9 +30,11 @@ export async function handleReviewGenerate(
       event,
       dependencies.createRepository(),
       dependencies.createProvider,
+      () => dependencies.claimQuota(openid),
     );
     return { ok: true as const, result };
   } catch (error) {
+    if (isAiQuotaError(error)) return { ok: false as const, code: 'QUOTA_EXCEEDED' as const };
     if (error instanceof ReviewGenerationServiceError) {
       return { ok: false as const, code: error.code };
     }

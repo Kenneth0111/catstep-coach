@@ -106,6 +106,7 @@ export async function generateOwnedReview(
   input: unknown,
   repository: OwnedTodayPlanRepository,
   createProvider: (options: ReviewProviderOptions) => AIProvider,
+  claimQuota: () => Promise<void> = async () => undefined,
 ): Promise<ReviewGenerationResult> {
   if (
     !openid.trim() ||
@@ -122,6 +123,7 @@ export async function generateOwnedReview(
   if (!plan) {
     throw new ReviewGenerationServiceError('INVALID_CONTEXT');
   }
+  await claimQuota();
 
   let candidate: unknown;
   try {

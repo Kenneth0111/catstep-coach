@@ -43,6 +43,9 @@ npm.cmd run build --prefix cloudfunctions/plan-update-task
 npm.cmd run build --prefix cloudfunctions/review-generate
 npm.cmd run build --prefix cloudfunctions/review-confirm
 npm.cmd run build --prefix cloudfunctions/plan-resize-task
+npm.cmd run build --prefix cloudfunctions/reminder-schedule
+npm.cmd run build --prefix cloudfunctions/reminder-dispatch
+npm.cmd run build --prefix cloudfunctions/account-delete
 ```
 
 编译产物位于各云函数的 `dist/`，不会提交到 Git。
@@ -80,7 +83,7 @@ git check-ignore project.private.config.json
 3. 等待环境初始化完成，确认开发者工具能看到该环境。
 4. 不要把环境 ID 写进 `project.config.json`、源码或提交记录。
 
-全部 7 个云函数都不在仓库中硬编码环境 ID。只有需要数据库访问的云函数通过 `@cloudbase/node-sdk` 的当前环境标识初始化；其他云函数仍从可信上下文读取身份。部署前先运行云函数构建命令，然后分别在各云函数目录上右键，选择云端安装依赖的上传部署方式。
+全部云函数都不在仓库中硬编码环境 ID。需要数据库访问的云函数通过 `@cloudbase/node-sdk` 的当前环境标识初始化；其他云函数仍从可信上下文读取身份。部署前先运行云函数构建命令，然后分别在各云函数目录上右键，选择云端安装依赖的上传部署方式。
 
 `goal-next-step` 和 `plan-generate` 云函数还需要在 CloudBase 控制台配置以下运行时环境变量：
 
@@ -91,6 +94,34 @@ git check-ignore project.private.config.json
 不要把真实值写进仓库。默认单次模型请求（包含响应体读取）在 5 秒后中止；工作流最多执行首次请求、一次重试和一次结构修复，总模型等待不超过 15 秒。若 `plan-generate` 的 `TOKENHUB_BASE_URL` 指向 `api.deepseek.com`，它会显式关闭思考模式，并把单次请求上限调为 8 秒，以适配直连 DeepSeek 的响应延迟；计划工作流最多发起两次模型请求，仍低于 20 秒云函数超时。规则降级时云函数日志会记录 `daily_plan_fallback`、失败阶段和错误码，不记录提示词、响应正文或密钥。部署时使用 Node.js 20，并把两个 AI 云函数的超时设置为至少 20 秒。上述 AI 环境变量只用于 `goal-next-step` 和 `plan-generate` 两个 AI 云函数。`plan-confirm`、`plan-get-today` 和 `plan-update-task` 三个 Day 3 云函数不需要硬编码环境 ID 或 AI 环境变量；它们使用可信 `WX_OPENID` 和当前 CloudBase 环境执行用户隔离的计划读写。本地自动测试使用假的 HTTP 边界，不会调用 TokenHub 或消耗额度。
 
 目标引导页会依次调用三个 Day 2 云函数。`goal-confirm` 把用户确认的目标写入 `goals` 集合；`plan-generate` 只为当前微信身份拥有的活动目标生成计划。用户可在本地编辑或删除计划预览任务，再通过 `plan-confirm` 明确确认；服务端为同一用户的同一上海自然日原子地返回或创建一份计划。`plan-get-today` 只读取当前用户的已确认计划，`plan-update-task` 只更新当前用户拥有的计划任务。
+
+## Day 5：额度、提醒与删除
+
+四个 AI 工作流在完成输入与归属校验后、调用模型前使用 CloudBase 事务声明额度。默认每个微信身份在上海自然日最多 6 次；第 7 次返回 `QUOTA_EXCEEDED`，任务开始、完成、队尾重排等确定性操作仍可用。
+
+`reminder-schedule` 仅保存当前用户当天计划的 `plan_start` 或 `review` 提醒，同一计划同类提醒只保留一条。客户端不能指定发送时间或消息正文：开始提醒由服务端安排在授权后 15 分钟，复盘提醒安排在上海时间 21:00；如果授权时已经过 21:00，则安排在 15 分钟后。今日页的按钮会在用户点击事件中直接调用 `wx.requestSubscribeMessage`，且只为本次明确允许的模板创建提醒。
+
+`reminder-dispatch` 查询到期的 `pending` 记录，通过 `wx-server-sdk` 的 `cloud.openapi.subscribeMessage.send` 发送，再写回 `sent` 或 `failed`、安全的 `dispatchCode` 和派发时间。模板 ID 是小程序订阅 API 必需的公开标识，不是 AppSecret；客户端包含模板 ID，派发函数仍通过环境变量校验部署配置。AppSecret、access token 和任何密钥都不得写入仓库或日志。
+
+`reminder-dispatch/config.json` 声明了 `subscribeMessage.send` 云调用权限。部署时必须连同该文件重新上传函数；缺少此权限会导致微信云调用返回 `-604101`。权限配置上传后可能需要等待约 10 分钟缓存生效。
+
+部署 `reminder-dispatch` 前，在该云函数的运行时环境变量中配置：
+
+- `WECHAT_PLAN_START_TEMPLATE_ID`：微信公众平台“日程提醒”模板 ID。
+- `WECHAT_REVIEW_TEMPLATE_ID`：微信公众平台“打卡提醒”模板 ID。
+- `WECHAT_MINIPROGRAM_STATE`：联调填 `developer`，体验版填 `trial`，正式版填 `formal`；未填时仅默认 `developer`。
+
+还必须确认当前小程序 AppID 已关联当前环境，否则云调用无法代表该小程序发送订阅消息。微信开发者工具创建的微信云开发环境会自动关联当前小程序。`reminder-dispatch/config.json` 已包含名为 `dispatch-reminders-every-5-minutes` 的 `timer` 触发器，七段 Cron 为 `0 */5 * * * * *`，表示每 5 分钟执行一次。部署函数代码后，还要在微信开发者工具中右键 `reminder-dispatch` 并选择“上传触发器”；不要只上传代码而漏掉触发器。
+
+“我的”页面提供 AI 内容和隐私说明，以及删除全部数据入口。`account-delete` 只按可信 `WX_OPENID` 删除该用户的 `goals`、`plans`、`reviews`、`memories`、`reminders`、`ai_calls`、`ai_quotas` 与 `users` 文档，并写入不含正文和身份的 `deletion_audits` 审计事件。
+
+### Day 5 真实 CloudBase 验收
+
+1. 构建并以“云端安装依赖”方式部署四个 AI 云函数以及 `reminder-schedule`、`reminder-dispatch`、`account-delete`；确认 `reminder-dispatch` 已安装 `wx-server-sdk`，且客户端不传递 OpenID、日期、发送时间、消息正文、额度或删除集合。
+2. 对同一有效 AI 工作流连续调用 7 次：前 6 次应获得原有 AI 或规则降级结果，第 7 次应返回 `QUOTA_EXCEEDED`；随后用无效输入调用，确认它不消耗额度。
+3. 用真机打开当天已确认计划，点击“开启今日提醒”，允许两种一次性订阅。确认 `reminders` 产生两条 `pending` 记录：开始提醒约为当前时间加 15 分钟，复盘提醒为当日上海时间 21:00；重复创建同类提醒不能产生第二条记录。
+4. 为首次联调可在 CloudBase 数据库临时把一条测试记录的 `sendAt` 改为已过去的 ISO 时间，等待最多 5 分钟。确认微信收到对应模板消息，记录变为 `sent` 且 `dispatchCode` 为 `OK`；拒绝授权或故意使用错误模板配置时应变为 `failed`，错误码可追踪，但日志不含 OpenID、任务正文、模板正文或上游返回详情。验收后删除这条测试记录或恢复正常时间。
+5. 用两个不同微信身份分别写入测试数据；在“我的”删除第一个身份，确认仅其八个业务集合中的数据被删除，第二个身份数据保留，`deletion_audits` 不含目标或复盘正文、OpenID、密钥或上游响应。
 
 ## TokenHub 单次连通检查
 

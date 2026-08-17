@@ -4,6 +4,7 @@ import {
   getNextGoalStep,
   type GoalClarificationInput,
 } from '../shared/goal-next-step';
+import { isAiQuotaError } from '../shared/ai-quota';
 
 interface ProviderConfiguration {
   apiKey: string;
@@ -15,6 +16,7 @@ export interface GoalNextStepDependencies {
   getOpenid(context: unknown): string | undefined;
   env: Readonly<Record<string, string | undefined>>;
   createProvider(configuration: ProviderConfiguration): AIProvider;
+  claimQuota(openid: string): Promise<void>;
 }
 
 export async function handleGoalNextStep(
@@ -41,9 +43,13 @@ export async function handleGoalNextStep(
     const result = await getNextGoalStep(
       event as GoalClarificationInput,
       provider,
+      () => dependencies.claimQuota(dependencies.getOpenid(context)!),
     );
     return { ok: true as const, result };
   } catch (error) {
+    if (isAiQuotaError(error)) {
+      return { ok: false as const, code: 'QUOTA_EXCEEDED' as const };
+    }
     if (error instanceof GoalNextStepError) {
       return { ok: false as const, code: error.code };
     }

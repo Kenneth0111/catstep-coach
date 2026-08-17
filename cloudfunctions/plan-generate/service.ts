@@ -63,6 +63,7 @@ export async function generateOwnedDailyPlan(
   input: unknown,
   repository: OwnedGoalRepository,
   createProvider: () => AIProvider,
+  claimQuota: () => Promise<void> = async () => undefined,
 ): Promise<DailyPlanGenerationResult> {
   if (!openid.trim() || !isPlanInput(input)) {
     throw new PlanGenerationServiceError('INVALID_CONTEXT');
@@ -82,5 +83,6 @@ export async function generateOwnedDailyPlan(
     return goal;
   });
 
+  await claimQuota();
   return generateDailyPlan({ ...input, goals }, createProvider());
 }

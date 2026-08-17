@@ -4,8 +4,13 @@ import {
   getTodayPlan,
   requestTodayReview,
   resizeTodayTask,
+  scheduleReminder,
   updatePlanTask,
 } from '../../shared/cloud-api';
+import {
+  requestReminderAuthorization,
+  subscribeToTodayReminders,
+} from '../../shared/reminder-subscription';
 import {
   beginTodayTaskUpdate,
   beginTodayReview,
@@ -29,6 +34,7 @@ const errorMessages = {
   UNAUTHENTICATED: '请先使用已关联云环境的小程序账号。',
   INVALID_CONTEXT: '今日计划信息不完整，请重新确认。',
   MISCONFIGURED: '服务还没有配置好，请稍后再试。',
+  QUOTA_EXCEEDED: '今天的 AI 次数已用完，明天再继续吧。',
   INTERNAL_ERROR: '今天的计划没有加载成功，再试一次就好。',
 } as const;
 
@@ -36,6 +42,7 @@ const reviewErrorMessages = {
   UNAUTHENTICATED: '请先使用已关联云环境的小程序账号。',
   INVALID_CONTEXT: '无法为这份计划生成复盘，请确认它是今天已确认的计划。',
   MISCONFIGURED: '复盘服务还没有配置好，请稍后再试。',
+  QUOTA_EXCEEDED: '今天的 AI 次数已用完，明天再继续吧。',
   INTERNAL_ERROR: '复盘暂时无法生成，再试一次就好。',
 } as const;
 
@@ -43,6 +50,7 @@ const reviewConfirmationErrorMessages = {
   UNAUTHENTICATED: '请先使用已关联云环境的小程序账号。',
   INVALID_CONTEXT: '这份复盘和今天的计划不匹配，请重新生成后再确认。',
   MISCONFIGURED: '复盘保存服务还没有配置好，请稍后再试。',
+  QUOTA_EXCEEDED: '今天的 AI 次数已用完，明天再继续吧。',
   INTERNAL_ERROR: '复盘确认没有保存成功，再试一次就好。',
 } as const;
 
@@ -52,6 +60,8 @@ Page({
     errorMessage: '',
     taskUpdateErrorMessage: '',
     reviewErrorMessage: '',
+    reminderStage: 'idle' as 'idle' | 'requesting' | 'scheduled' | 'error',
+    reminderMessage: '',
     confirmMemory: false,
   },
 
@@ -63,6 +73,31 @@ Page({
     const flow = retryTodayFlow(this.data.flow);
     this.setData({ flow, errorMessage: '' });
     await this.loadTodayPlan(flow);
+  },
+
+  async onSubscribeReminders() {
+    const planId = this.data.flow.plan?.id;
+    if (!planId || this.data.reminderStage === 'requesting') return;
+    this.setData({ reminderStage: 'requesting', reminderMessage: '' });
+    try {
+      const result = await subscribeToTodayReminders(planId, {
+        requestSubscription: (templateIds) => requestReminderAuthorization(templateIds),
+        schedule: async (input) => { await scheduleReminder(input); },
+        createRequestId: (kind) => `${this.createRequestId()}-${kind}`,
+      });
+      const count = result.scheduled.length;
+      this.setData({
+        reminderStage: count > 0 ? 'scheduled' : 'idle',
+        reminderMessage: count > 0
+          ? `已开启 ${count} 条今日提醒`
+          : '本次未开启提醒，你仍可正常使用计划。',
+      });
+    } catch {
+      this.setData({
+        reminderStage: 'error',
+        reminderMessage: '提醒暂时没有开启成功，请稍后再试。',
+      });
+    }
   },
 
   async onStartTask(event: WechatMiniprogram.CustomEvent<{ taskId: string }>) {

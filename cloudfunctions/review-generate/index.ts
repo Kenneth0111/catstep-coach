@@ -14,6 +14,7 @@ const cloudbase = require('@cloudbase/node-sdk') as {
   getCloudbaseContext(context: unknown): { WX_OPENID?: string };
   init(options: { env: string }): {
     database(): {
+      runTransaction<T>(update: (transaction: any) => Promise<T>): Promise<T | { result: T }>;
       collection(name: 'plans'): {
         doc(id: string): { get(): Promise<{ data: StoredPlan[] }> };
       };
@@ -24,8 +25,10 @@ const cloudbase = require('@cloudbase/node-sdk') as {
 const { handleReviewGenerate } = require('./handler') as typeof import('./handler');
 const { createTokenHubProvider } = require('../shared/tokenhub-provider') as typeof import('../shared/tokenhub-provider');
 const { buildReviewMessages } = require('./prompt') as typeof import('./prompt');
+const { createCloudbaseQuotaClaimer } = require('../shared/cloudbase-ai-quota') as typeof import('../shared/cloudbase-ai-quota');
 
 const database = cloudbase.init({ env: cloudbase.SYMBOL_CURRENT_ENV }).database();
+const claimQuota = createCloudbaseQuotaClaimer(database, () => new Date());
 
 function shanghaiDate(now: Date): string {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -70,4 +73,5 @@ exports.main = (event: unknown, context: unknown) =>
         timeoutMs,
         buildMessages: buildReviewMessages,
       }),
+    claimQuota,
   });

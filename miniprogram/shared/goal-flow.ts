@@ -13,6 +13,7 @@ export type PublicErrorCode =
   | 'UNAUTHENTICATED'
   | 'INVALID_CONTEXT'
   | 'MISCONFIGURED'
+  | 'QUOTA_EXCEEDED'
   | 'INTERNAL_ERROR';
 
 export interface GoalAnswer {

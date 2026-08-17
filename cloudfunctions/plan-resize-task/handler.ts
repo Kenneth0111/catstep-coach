@@ -4,12 +4,14 @@ import {
   resizeOwnedTask,
   type PlanResizeRepository,
 } from './service';
+import { isAiQuotaError } from '../shared/ai-quota';
 
 export interface PlanResizeTaskDependencies {
   getOpenid(context: unknown): string | undefined;
   createRepository(): PlanResizeRepository;
   createProvider(): AIProvider;
   now(): Date;
+  claimQuota(openid: string): Promise<void>;
 }
 
 export async function handlePlanResizeTask(
@@ -28,9 +30,11 @@ export async function handlePlanResizeTask(
       dependencies.createRepository(),
       dependencies.createProvider,
       dependencies.now,
+      () => dependencies.claimQuota(openid),
     );
     return { ok: true as const, result };
   } catch (error) {
+    if (isAiQuotaError(error)) return { ok: false as const, code: 'QUOTA_EXCEEDED' as const };
     if (error instanceof PlanResizeError) {
       return { ok: false as const, code: error.code };
     }

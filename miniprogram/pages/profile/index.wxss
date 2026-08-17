@@ -1,0 +1,1 @@
+.profile-page { padding: 24rpx; color: #40372f; } .card { background: #fffaf0; border-radius: 16rpx; margin-bottom: 20rpx; padding: 28rpx; } .title { display: block; font-weight: 700; margin-bottom: 12rpx; }

@@ -1,5 +1,5 @@
 {
-  "pages": ["pages/goal/index", "pages/today/index"],
+  "pages": ["pages/goal/index", "pages/today/index", "pages/profile/index"],
   "window": {
     "navigationBarBackgroundColor": "#F7F0DF",
     "navigationBarTextStyle": "black",

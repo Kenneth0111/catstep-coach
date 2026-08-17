@@ -124,6 +124,7 @@ export async function resizeOwnedTask(
   repository: PlanResizeRepository,
   createProvider: () => AIProvider,
   now: () => Date,
+  claimQuota: () => Promise<void> = async () => undefined,
 ): Promise<PlanResizeResult> {
   if (!isText(openid) || !isInput(input)) {
     throw new PlanResizeError('INVALID_CONTEXT');
@@ -191,6 +192,7 @@ export async function resizeOwnedTask(
     return { source: 'rule', plan: updatedPlan };
   }
   let replacement = fallbackTask(original);
+  await claimQuota();
   try {
     const candidate = await createProvider().generateStructured({
       workflow: 'resizeTask',

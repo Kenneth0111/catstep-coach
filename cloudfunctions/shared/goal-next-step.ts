@@ -207,6 +207,7 @@ function validateGoalStep(
 export async function getNextGoalStep(
   input: GoalClarificationInput,
   provider: AIProvider,
+  claimQuota: () => Promise<void> = async () => undefined,
 ): Promise<GoalNextStepResult> {
   if (!hasValidContext(input)) {
     throw new GoalNextStepError('INVALID_CONTEXT');
@@ -217,6 +218,7 @@ export async function getNextGoalStep(
     promptVersion: 'goal-clarification-v1',
     input,
   };
+  await claimQuota();
   let candidate: unknown;
   try {
     candidate = await provider.generateStructured(request);
