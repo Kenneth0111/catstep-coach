@@ -28,6 +28,7 @@ const errorMessages: Record<PublicErrorCode, string> = {
   UNAUTHENTICATED: '请先使用已关联云环境的小程序账号。',
   INVALID_CONTEXT: '这一步的信息不完整，请检查后再试。',
   MISCONFIGURED: 'AI 服务还没有配置好，请稍后再试。',
+  QUOTA_EXCEEDED: '今天的 AI 次数已用完，明天再继续吧。',
   INTERNAL_ERROR: '刚才没有走稳，再试一次就好。',
 };
 

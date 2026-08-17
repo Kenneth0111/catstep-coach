@@ -1,0 +1,1 @@
+{"name":"reminder-dispatch","private":true,"version":"1.0.0","main":"dist/reminder-dispatch/index.js","scripts":{"build":"tsc -p tsconfig.json"},"dependencies":{"@cloudbase/node-sdk":"3.18.3","wx-server-sdk":"4.0.2"}}

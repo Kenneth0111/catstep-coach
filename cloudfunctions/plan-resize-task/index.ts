@@ -8,8 +8,10 @@ const cloudbase = require('@cloudbase/node-sdk') as {
 const { handlePlanResizeTask } = require('./handler') as typeof import('./handler');
 const { createTokenHubProvider } = require('../shared/tokenhub-provider') as typeof import('../shared/tokenhub-provider');
 const { buildResizeTaskMessages } = require('./prompt') as typeof import('./prompt');
+const { createCloudbaseQuotaClaimer } = require('../shared/cloudbase-ai-quota') as typeof import('../shared/cloudbase-ai-quota');
 
 const database = cloudbase.init({ env: cloudbase.SYMBOL_CURRENT_ENV }).database() as PlanResizeDatabase;
+const claimQuota = createCloudbaseQuotaClaimer(database, () => new Date());
 
 function shanghaiDate(now: Date): string {
   const values = Object.fromEntries(
@@ -31,4 +33,5 @@ exports.main = (event: unknown, context: unknown) =>
       buildMessages: buildResizeTaskMessages,
     }),
     now: () => new Date(),
+    claimQuota,
   });

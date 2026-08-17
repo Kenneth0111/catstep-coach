@@ -28,6 +28,7 @@ function dependencies() {
         return review;
       },
     })),
+    claimQuota: async () => { throw Object.assign(new Error('quota'), { code: 'QUOTA_EXCEEDED' }); },
   };
 }
 
@@ -37,6 +38,6 @@ describe('review.generate handler', () => {
 
     await expect(
       handleReviewGenerate({ planId: 'plan-1' }, {}, deps),
-    ).resolves.toEqual({ ok: true, result: { source: 'ai', review } });
+    ).resolves.toEqual({ ok: false, code: 'QUOTA_EXCEEDED' });
   });
 });

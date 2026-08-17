@@ -6,11 +6,24 @@ import {
   getTodayPlan,
   requestDailyPlan,
   requestGoalNextStep,
+  scheduleReminder,
   requestTodayReview,
   type CloudFunctionCaller,
 } from '../miniprogram/shared/cloud-api';
 
 describe('Mini Program CloudBase API boundary', () => {
+  it('schedules an accepted reminder with the exact server-owned request', async () => {
+    const input = { requestId: 'request-1', planId: 'plan-1', kind: 'review' as const };
+    const caller = vi.fn(async () => ({
+      result: { ok: true, reminder: { id: 'request-1', status: 'pending' } },
+    })) satisfies CloudFunctionCaller;
+
+    await expect(scheduleReminder(input, caller)).resolves.toEqual({
+      id: 'request-1', status: 'pending',
+    });
+    expect(caller).toHaveBeenCalledWith({ name: 'reminder-schedule', data: input });
+  });
+
   it('requests a structured review for the selected Today plan', async () => {
     const caller = vi.fn(async () => ({
       result: {
@@ -201,6 +214,7 @@ describe('Mini Program CloudBase API boundary', () => {
     'UNAUTHENTICATED',
     'INVALID_CONTEXT',
     'MISCONFIGURED',
+    'QUOTA_EXCEEDED',
     'INTERNAL_ERROR',
   ] as const)('maps the public server error %s', async (code) => {
     const caller: CloudFunctionCaller = async () => ({

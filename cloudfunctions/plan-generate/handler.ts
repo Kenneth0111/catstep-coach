@@ -4,6 +4,7 @@ import {
   generateOwnedDailyPlan,
   type OwnedGoalRepository,
 } from './service';
+import { isAiQuotaError } from '../shared/ai-quota';
 
 interface ProviderConfiguration {
   apiKey: string;
@@ -18,6 +19,7 @@ export interface PlanGenerateDependencies {
   env: Readonly<Record<string, string | undefined>>;
   createRepository(): OwnedGoalRepository;
   createProvider(configuration: ProviderConfiguration): AIProvider;
+  claimQuota(openid: string): Promise<void>;
 }
 
 export async function handlePlanGenerate(
@@ -47,9 +49,11 @@ export async function handlePlanGenerate(
           baseUrl: dependencies.env.TOKENHUB_BASE_URL?.trim() || undefined,
         });
       },
+      () => dependencies.claimQuota(openid),
     );
     return { ok: true as const, result };
   } catch (error) {
+    if (isAiQuotaError(error)) return { ok: false as const, code: 'QUOTA_EXCEEDED' as const };
     if (error instanceof MissingProviderConfigurationError) {
       return { ok: false as const, code: 'MISCONFIGURED' as const };
     }

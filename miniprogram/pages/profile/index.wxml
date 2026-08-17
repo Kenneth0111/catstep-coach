@@ -1,0 +1,5 @@
+<view class="profile-page">
+  <view class="card"><text class="title">AI 生成内容</text><text>建议由 AI 生成，只作学习和工作辅助；你始终决定是否采纳。请不要输入密钥、身份证号或医疗、法律、投资等敏感信息。</text></view>
+  <view class="card"><text class="title">隐私与数据</text><text>数据按当前微信身份隔离。AI 运行日志仅记录脱敏技术元数据，不保存你的目标、复盘正文或密钥。</text></view>
+  <view class="card"><text class="title">删除全部数据</text><text>删除后无法恢复。</text><button bindtap="onDeleteAccount" loading="{{deleting}}" disabled="{{deleting}}">删除全部数据</button><text wx:if="{{message}}">{{message}}</text></view>
+</view>

@@ -1,5 +1,6 @@
 <view class="today-page">
   <view class="intro">
+    <navigator class="profile-link" url="/pages/profile/index">我的</navigator>
     <text class="eyebrow">今日计划</text>
     <text class="title">慢一点，也是在向前走</text>
     <text class="summary" wx:if="{{flow.stage === 'ready'}}">还剩 {{flow.summary.remainingCount}} 项，约 {{flow.summary.remainingMinutes}} 分钟</text>
@@ -23,6 +24,15 @@
   </view>
 
   <block wx:if="{{flow.stage === 'ready'}}">
+    <view class="reminder-card">
+      <text class="reminder-title">今日提醒</text>
+      <text>15 分钟后提醒开始，今晚 21:00 提醒复盘</text>
+      <button class="state-action" bindtap="onSubscribeReminders" loading="{{reminderStage === 'requesting'}}" disabled="{{reminderStage === 'requesting' || reminderStage === 'scheduled'}}">
+        {{reminderStage === 'scheduled' ? '今日提醒已开启' : '开启今日提醒'}}
+      </button>
+      <text class="reminder-message" wx:if="{{reminderMessage}}">{{reminderMessage}}</text>
+    </view>
+
     <view class="state-card error-state" wx:if="{{flow.taskUpdateErrorCode}}">
       <text>{{taskUpdateErrorMessage}}</text>
       <button class="state-action" bindtap="onRetryTaskUpdate">重试刚才的操作</button>

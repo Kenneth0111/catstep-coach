@@ -25,10 +25,11 @@ describe('plan.resizeTask handler', () => {
           });
         },
       })),
+      claimQuota: async () => { throw Object.assign(new Error('quota'), { code: 'QUOTA_EXCEEDED' }); },
     };
 
     await expect(
       handlePlanResizeTask({ requestId: 'resize-1', planId: 'plan-1', taskId: 'task-1' }, {}, dependencies),
-    ).resolves.toMatchObject({ ok: true, result: { source: 'ai', plan: { id: 'plan-1' } } });
+    ).resolves.toEqual({ ok: false, code: 'QUOTA_EXCEEDED' });
   });
 });

@@ -64,6 +64,7 @@ AI 能力拆分为 `clarifyGoal`、`generateDailyPlan`、`resizeTask` 和 `gener
 - [x] Day 4 复盘确认的确定性成长值（每日上限与幂等保护）
 - [x] Day 4 本人当天待开始任务的缩小与队尾重排（含规则降级）
 - [x] Day 4 Today 复盘、记忆确认与成长结果界面
+- [x] Day 5 AI 每日额度、订阅消息授权与派发、隐私提示及账户删除代码
 - [ ] 真实 TokenHub 模型连通验证
 - [ ] 目标、执行、复盘和成长的完整 UI
 - [ ] 自动化端到端测试、完整真机验收与体验版部署
@@ -77,6 +78,8 @@ AI 能力拆分为 `clarifyGoal`、`generateDailyPlan`、`resizeTask` 和 `gener
 - [Day 2 Completion 实施计划](docs/superpowers/plans/2026-08-07-day2-completion.md)
 - [Day 3 任务执行设计](docs/superpowers/specs/2026-08-10-day3-execution-design.md)
 - [Day 3 任务执行实施计划](docs/superpowers/plans/2026-08-10-day3-execution.md)
+- [Day 5 可靠性与隐私设计](docs/superpowers/specs/2026-08-13-day5-reliability-privacy-design.md)
+- [Day 5 可靠性与隐私实施计划](docs/superpowers/plans/2026-08-13-day5-reliability-privacy.md)
 
 ## MVP 验收重点
 

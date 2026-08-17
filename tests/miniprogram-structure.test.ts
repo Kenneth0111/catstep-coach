@@ -57,6 +57,7 @@ describe('native Mini Program structure', () => {
     expect(appConfig.pages).toEqual([
       'pages/goal/index',
       'pages/today/index',
+      'pages/profile/index',
     ]);
   });
 
@@ -111,6 +112,25 @@ describe('native Mini Program structure', () => {
     expect(source).toContain('onCompleteTask');
     expect(source).toContain('onRetryTaskUpdate');
     expect(source).not.toContain('整理今天要完成的三个步骤');
+  });
+
+  it('offers explicit subscription-message authorization from the ready Today plan', async () => {
+    const pageSource = await readFile(resolve(process.cwd(), 'miniprogram', 'pages', 'today', 'index.ts'), 'utf8');
+    const template = await readFile(resolve(process.cwd(), 'miniprogram', 'pages', 'today', 'index.wxml'), 'utf8');
+
+    expect(pageSource).toContain('requestReminderAuthorization');
+    expect(pageSource).toContain('subscribeToTodayReminders');
+    expect(template).toContain('bindtap="onSubscribeReminders"');
+    expect(template).toContain('15 分钟后提醒开始，今晚 21:00 提醒复盘');
+  });
+
+  it('lets users open the registered privacy and account page from Today', async () => {
+    const template = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/today/index.wxml'),
+      'utf8',
+    );
+
+    expect(template).toContain('url="/pages/profile/index"');
   });
 
   it('retries failed review generation instead of only returning to its idle state', async () => {

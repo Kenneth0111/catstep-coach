@@ -201,6 +201,7 @@ function isPublicErrorCode(value: unknown): value is PublicErrorCode {
     value === 'UNAUTHENTICATED' ||
     value === 'INVALID_CONTEXT' ||
     value === 'MISCONFIGURED' ||
+    value === 'QUOTA_EXCEEDED' ||
     value === 'INTERNAL_ERROR'
   );
 }
@@ -322,6 +323,21 @@ export async function getTodayPlan(
   return response.plan;
 }
 
+export async function scheduleReminder(
+  input: { requestId: string; planId: string; kind: 'plan_start' | 'review' },
+  caller: CloudFunctionCaller = platformCaller,
+): Promise<{ id: string; status: 'pending' }> {
+  const response = await callCloudFunction('reminder-schedule', input, caller);
+  if (
+    !isRecord(response.reminder) ||
+    !isText(response.reminder.id) ||
+    response.reminder.status !== 'pending'
+  ) {
+    throw new CloudApiError('INTERNAL_ERROR');
+  }
+  return response.reminder as unknown as { id: string; status: 'pending' };
+}
+
 export async function updatePlanTask(
   input: PlanTaskUpdateInput,
   caller: CloudFunctionCaller = platformCaller,
@@ -369,6 +385,15 @@ export async function resizeTodayTask(
     throw new CloudApiError('INTERNAL_ERROR');
   }
   return response.result.plan;
+}
+
+export async function deleteAccount(
+  caller: CloudFunctionCaller = platformCaller,
+): Promise<void> {
+  const response = await callCloudFunction('account-delete', {}, caller);
+  if (!isRecord(response.result) || response.result.deleted !== true) {
+    throw new CloudApiError('INTERNAL_ERROR');
+  }
 }
 
 function matchesTaskUpdate(

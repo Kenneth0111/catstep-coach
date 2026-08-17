@@ -13,6 +13,7 @@ function createDependencies(options?: {
   apiKey?: string;
   model?: string;
   provider?: AIProvider;
+  claimQuota?: (openid: string) => Promise<void>;
 }) {
   const provider =
     options?.provider ??
@@ -33,6 +34,7 @@ function createDependencies(options?: {
         TOKENHUB_MODEL: options?.model,
       },
       createProvider,
+      claimQuota: options?.claimQuota ?? (async () => undefined),
     },
     createProvider,
   };
@@ -91,6 +93,17 @@ describe('goal.nextStep cloud function handler', () => {
       model: 'hy3',
       baseUrl: undefined,
     });
+  });
+
+  it('rejects an exhausted quota before calling the provider', async () => {
+    const { dependencies, createProvider } = createDependencies({
+      openid: 'user-1', apiKey: 'secret', model: 'hy3',
+      claimQuota: async () => { throw Object.assign(new Error('QUOTA_EXCEEDED'), { code: 'QUOTA_EXCEEDED' }); },
+    });
+    await expect(handleGoalNextStep(validEvent, {}, dependencies)).resolves.toEqual({
+      ok: false, code: 'QUOTA_EXCEEDED',
+    });
+    expect(createProvider).toHaveBeenCalledTimes(1);
   });
 
   it('maps invalid request data to a stable public error', async () => {

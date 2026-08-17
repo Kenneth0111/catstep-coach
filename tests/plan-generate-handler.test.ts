@@ -41,6 +41,7 @@ function dependencies(options?: {
   model?: string;
   repository?: OwnedGoalRepository;
   provider?: AIProvider;
+  claimQuota?: (openid: string) => Promise<void>;
 }) {
   const createProvider = vi.fn(
     () =>
@@ -59,6 +60,7 @@ function dependencies(options?: {
     },
     createProvider,
     createRepository,
+    claimQuota: options?.claimQuota ?? (async () => undefined),
   };
 }
 
@@ -181,5 +183,11 @@ describe('plan.generate handler', () => {
 
     expect(result).toEqual({ ok: false, code: 'INTERNAL_ERROR' });
     expect(JSON.stringify(result)).not.toContain('database-secret-detail');
+  });
+
+  it('rejects exhausted quota after ownership validation without calling the model', async () => {
+    const deps = dependencies({ openid: 'user-1', apiKey: 'secret', model: 'hy3', claimQuota: async () => { throw Object.assign(new Error('quota'), { code: 'QUOTA_EXCEEDED' }); } });
+    await expect(handlePlanGenerate(event, {}, deps)).resolves.toEqual({ ok: false, code: 'QUOTA_EXCEEDED' });
+    expect(deps.createProvider).not.toHaveBeenCalled();
   });
 });
