@@ -1,6 +1,9 @@
 <view class="today-page">
   <view class="intro">
-    <navigator class="profile-link" url="/pages/profile/index">我的</navigator>
+    <view class="intro-links">
+      <navigator class="history-link" url="/pages/history/index">历史</navigator>
+      <navigator class="profile-link" url="/pages/profile/index">我的</navigator>
+    </view>
     <text class="eyebrow">今日计划</text>
     <text class="title">慢一点，也是在向前走</text>
     <text class="summary" wx:if="{{flow.stage === 'ready'}}">还剩 {{flow.summary.remainingCount}} 项，约 {{flow.summary.remainingMinutes}} 分钟</text>
@@ -61,6 +64,13 @@
       <text class="section-label">接下来</text>
       <view class="task-list">
         <task-card wx:for="{{flow.nextTasks}}" wx:key="id" task="{{item}}" />
+      </view>
+    </view>
+
+    <view class="section" wx:if="{{flow.completedTasks.length}}">
+      <text class="section-label">已完成</text>
+      <view class="task-list">
+        <task-card wx:for="{{flow.completedTasks}}" wx:key="id" task="{{item}}" />
       </view>
     </view>
   </block>

@@ -1,4 +1,4 @@
-export const DAILY_AI_QUOTA = 6;
+export const DAILY_AI_QUOTA = 50;
 
 export interface AiQuotaRepository {
   claim(): Promise<number>;

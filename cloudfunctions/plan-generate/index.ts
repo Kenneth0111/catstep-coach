@@ -26,6 +26,7 @@ const cloudbase = require('@cloudbase/node-sdk') as {
 
 const { handlePlanGenerate } = require('./handler') as typeof import('./handler');
 const { buildDailyPlanMessages } = require('./prompt') as typeof import('./prompt');
+const { getDailyPlanProviderOverrides } = require('./provider-config') as typeof import('./provider-config');
 const { createTokenHubProvider } = require('../shared/tokenhub-provider') as typeof import('../shared/tokenhub-provider');
 const { createCloudbaseQuotaClaimer } = require('../shared/cloudbase-ai-quota') as typeof import('../shared/cloudbase-ai-quota');
 
@@ -33,18 +34,6 @@ const app = cloudbase.init({ env: cloudbase.SYMBOL_CURRENT_ENV });
 const database = app.database();
 const claimQuota = createCloudbaseQuotaClaimer(database, () => new Date());
 const goals = database.collection('goals');
-
-function isDeepSeekBaseUrl(baseUrl: string | undefined): boolean {
-  if (!baseUrl) {
-    return false;
-  }
-
-  try {
-    return new URL(baseUrl).hostname === 'api.deepseek.com';
-  } catch {
-    return false;
-  }
-}
 
 function createRepository(): OwnedGoalRepository {
   return {
@@ -74,15 +63,9 @@ exports.main = (event: unknown, context: unknown) =>
     env: process.env,
     createRepository,
     createProvider: (configuration) => {
-      const usesDeepSeek = isDeepSeekBaseUrl(configuration.baseUrl);
       return createTokenHubProvider({
         ...configuration,
-        ...(usesDeepSeek
-          ? {
-              timeoutMs: 8_000,
-              requestOptions: { thinking: { type: 'disabled' } },
-            }
-          : {}),
+        ...getDailyPlanProviderOverrides(configuration.baseUrl),
         buildMessages: buildDailyPlanMessages,
       });
     },

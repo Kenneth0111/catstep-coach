@@ -35,6 +35,7 @@ export interface TodayFlowState {
   plan: TodayPlan | null;
   currentTask: TodayPlanTask | null;
   nextTasks: TodayPlanTask[];
+  completedTasks: TodayPlanTask[];
   summary: PlanSummary;
   errorCode: PublicErrorCode | null;
   taskUpdate: TodayTaskUpdate | null;
@@ -61,6 +62,7 @@ function readyState(plan: TodayPlan): TodayFlowState {
     nextTasks: plan.tasks.filter(
       (task) => task.id !== currentTask?.id && task.status !== 'completed',
     ),
+    completedTasks: plan.tasks.filter((task) => task.status === 'completed'),
     summary: summarizePlan(plan.tasks),
     errorCode: null,
     taskUpdate: null,
@@ -77,6 +79,7 @@ export function createTodayFlowState(): TodayFlowState {
     plan: null,
     currentTask: null,
     nextTasks: [],
+    completedTasks: [],
     summary: { remainingCount: 0, remainingMinutes: 0 },
     errorCode: null,
     taskUpdate: null,

@@ -14,11 +14,24 @@
   margin-bottom: 48rpx;
 }
 
-.profile-link {
-  align-self: flex-end;
+.intro-links {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 20rpx;
+}
+
+.profile-link,
+.history-link {
+  display: flex;
+  align-items: center;
+  min-height: 88rpx;
   color: #356f63;
   font-size: 28rpx;
+}
+
+.history-link {
+  min-height: 88rpx;
 }
 
 .eyebrow {

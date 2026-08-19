@@ -7,6 +7,10 @@ import type {
   PublicErrorCode,
 } from './goal-flow';
 import type { TodayPlan } from './today-flow';
+import type {
+  ClientHistoryTask,
+  ClientPlanHistoryResult,
+} from './history-calendar';
 
 export interface CloudFunctionCaller {
   (options: { name: string; data: unknown }): Promise<{ result?: unknown }>;
@@ -62,6 +66,37 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isText(value: unknown): value is string {
   return typeof value === 'string' && Boolean(value.trim());
+}
+
+const HISTORY_MONTH_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
+const HISTORY_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+function isHistoryMonth(value: unknown): value is string {
+  if (typeof value !== 'string') {
+    return false;
+  }
+  const match = HISTORY_MONTH_PATTERN.exec(value);
+  return match !== null && Number(match[1]) > 0;
+}
+
+function isHistoryDate(value: unknown, month: string): value is string {
+  if (typeof value !== 'string') {
+    return false;
+  }
+  const match = HISTORY_DATE_PATTERN.exec(value);
+  if (!match || !value.startsWith(`${month}-`)) {
+    return false;
+  }
+  const year = Number(match[1]);
+  const monthNumber = Number(match[2]);
+  const day = Number(match[3]);
+  if (year === 0 || monthNumber < 1 || monthNumber > 12 || day < 1 || day > 31) {
+    return false;
+  }
+  const date = new Date(Date.UTC(year, monthNumber - 1, day));
+  return date.getUTCFullYear() === year &&
+    date.getUTCMonth() === monthNumber - 1 &&
+    date.getUTCDate() === day;
 }
 
 function isSource(
@@ -196,6 +231,101 @@ function isTodayPlan(value: unknown): value is TodayPlan {
   return totalMinutes <= (value.availableMinutes as number);
 }
 
+function isHistoryTask(value: unknown): value is ClientHistoryTask {
+  return isRecord(value) &&
+    isText(value.id) &&
+    isText(value.title) &&
+    Number.isInteger(value.estimatedMinutes) &&
+    (value.estimatedMinutes as number) > 0 &&
+    isText(value.doneCriteria) &&
+    isText(value.goalId) &&
+    Number.isInteger(value.priority) &&
+    (value.priority as number) > 0 &&
+    (value.status === 'pending' ||
+      value.status === 'in_progress' ||
+      value.status === 'completed') &&
+    (value.difficultyFeedback === undefined ||
+      value.difficultyFeedback === 'easy' ||
+      value.difficultyFeedback === 'just_right' ||
+      value.difficultyFeedback === 'hard');
+}
+
+function isHistoryReview(value: unknown): boolean {
+  return isRecord(value) &&
+    isText(value.completionSummary) &&
+    isText(value.encouragement) &&
+    isText(value.nextSuggestion);
+}
+
+function isPlanHistoryResult(
+  value: unknown,
+  input: { month: string; selectedDate: string },
+): value is ClientPlanHistoryResult {
+  if (!isRecord(value) ||
+      !isHistoryMonth(value.month) ||
+      value.month !== input.month ||
+      !isHistoryDate(value.selectedDate, value.month) ||
+      value.selectedDate !== input.selectedDate ||
+      !Array.isArray(value.planDates)) {
+    return false;
+  }
+
+  const planDates = new Set<string>();
+  let previousDate = '';
+  for (const planDate of value.planDates) {
+    if (!isHistoryDate(planDate, value.month) ||
+        planDates.has(planDate) ||
+        (previousDate !== '' && planDate < previousDate)) {
+      return false;
+    }
+    planDates.add(planDate);
+    previousDate = planDate;
+  }
+
+  if (value.selectedDay === null) {
+    return true;
+  }
+  if (!isRecord(value.selectedDay) ||
+      !isHistoryDate(value.selectedDay.date, value.month) ||
+      value.selectedDay.date !== value.selectedDate ||
+      !Number.isInteger(value.selectedDay.availableMinutes) ||
+      (value.selectedDay.availableMinutes as number) <= 0 ||
+      !isText(value.selectedDay.summary) ||
+      !Array.isArray(value.selectedDay.groups) ||
+      value.selectedDay.groups.length < 1 ||
+      value.selectedDay.review !== null && !isHistoryReview(value.selectedDay.review)) {
+    return false;
+  }
+
+  const groupIds = new Set<string>();
+  let taskCount = 0;
+  let totalMinutes = 0;
+  for (const group of value.selectedDay.groups) {
+    if (!isRecord(group) ||
+        !isText(group.goalId) ||
+        groupIds.has(group.goalId) ||
+        !isText(group.goalTitle) ||
+        !Array.isArray(group.tasks) ||
+        group.tasks.length < 1 ||
+        group.tasks.length > 5) {
+      return false;
+    }
+    groupIds.add(group.goalId);
+    taskCount += group.tasks.length;
+    if (taskCount > 5) {
+      return false;
+    }
+    for (const task of group.tasks) {
+      if (!isHistoryTask(task) || task.goalId !== group.goalId) {
+        return false;
+      }
+      totalMinutes += task.estimatedMinutes;
+    }
+  }
+  return totalMinutes <= (value.selectedDay.availableMinutes as number) &&
+    planDates.has(value.selectedDay.date);
+}
+
 function isPublicErrorCode(value: unknown): value is PublicErrorCode {
   return (
     value === 'UNAUTHENTICATED' ||
@@ -321,6 +451,17 @@ export async function getTodayPlan(
     throw new CloudApiError('INTERNAL_ERROR');
   }
   return response.plan;
+}
+
+export async function getPlanHistory(
+  input: { month: string; selectedDate: string },
+  caller: CloudFunctionCaller = platformCaller,
+): Promise<ClientPlanHistoryResult> {
+  const response = await callCloudFunction('plan-history', input, caller);
+  if (!isPlanHistoryResult(response.result, input)) {
+    throw new CloudApiError('INTERNAL_ERROR');
+  }
+  return response.result;
 }
 
 export async function scheduleReminder(

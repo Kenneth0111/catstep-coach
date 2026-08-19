@@ -3,6 +3,7 @@ import {
   CloudApiError,
   confirmDailyPlan,
   confirmGoal,
+  getPlanHistory,
   getTodayPlan,
   requestDailyPlan,
   requestGoalNextStep,
@@ -189,6 +190,100 @@ describe('Mini Program CloudBase API boundary', () => {
     });
 
     await expect(getTodayPlan(caller)).resolves.toBeNull();
+  });
+
+  it('loads plan history with the exact month and selected date request', async () => {
+    const input = { month: '2026-08', selectedDate: '2026-08-17' };
+    const caller = vi.fn(async () => ({
+      result: {
+        ok: true,
+        result: {
+          month: '2026-08',
+          selectedDate: '2026-08-17',
+          planDates: ['2026-08-17'],
+          selectedDay: {
+            date: '2026-08-17',
+            availableMinutes: 30,
+            summary: '完成今天的练习',
+            groups: [{
+              goalId: 'goal-1',
+              goalTitle: '学习测试',
+              tasks: [{
+                id: 'task-1',
+                title: '完成练习',
+                estimatedMinutes: 30,
+                doneCriteria: '完成五道练习',
+                goalId: 'goal-1',
+                priority: 1,
+                status: 'completed',
+                difficultyFeedback: 'just_right',
+              }],
+            }],
+            review: {
+              completionSummary: '完成了一项任务',
+              encouragement: '做得很好',
+              nextSuggestion: '明天继续',
+            },
+          },
+        },
+      },
+    })) satisfies CloudFunctionCaller;
+
+    await expect(getPlanHistory(input, caller)).resolves.toMatchObject({
+      month: '2026-08', selectedDate: '2026-08-17', planDates: ['2026-08-17'],
+    });
+    expect(caller).toHaveBeenCalledWith({ name: 'plan-history', data: input });
+  });
+
+  const validHistoryResult = {
+    month: '2026-08',
+    selectedDate: '2026-08-17',
+    planDates: ['2026-08-17'],
+    selectedDay: {
+      date: '2026-08-17',
+      availableMinutes: 30,
+      summary: '完成今天的练习',
+      groups: [{
+        goalId: 'goal-1',
+        goalTitle: '学习测试',
+        tasks: [{
+          id: 'task-1',
+          title: '完成练习',
+          estimatedMinutes: 30,
+          doneCriteria: '完成五道练习',
+          goalId: 'goal-1',
+          priority: 1,
+          status: 'completed',
+          difficultyFeedback: 'just_right',
+        }],
+      }],
+      review: null,
+    },
+  };
+
+  it.each([
+    ['planDates is not an array', { planDates: '2026-08-17' }],
+    ['planDates contains an out-of-month date', { planDates: ['2026-09-01'] }],
+    ['task has an unknown status', { selectedDay: { ...validHistoryResult.selectedDay, groups: [{ ...validHistoryResult.selectedDay.groups[0], tasks: [{ ...validHistoryResult.selectedDay.groups[0].tasks[0], status: 'blocked' }] }] } }],
+    ['task is missing doneCriteria', { selectedDay: { ...validHistoryResult.selectedDay, groups: [{ ...validHistoryResult.selectedDay.groups[0], tasks: [{ ...validHistoryResult.selectedDay.groups[0].tasks[0], doneCriteria: undefined }] }] } }],
+    ['task has an invalid difficulty feedback', { selectedDay: { ...validHistoryResult.selectedDay, groups: [{ ...validHistoryResult.selectedDay.groups[0], tasks: [{ ...validHistoryResult.selectedDay.groups[0].tasks[0], difficultyFeedback: 'unknown' }] }] } }],
+    ['group is missing its goal title', { selectedDay: { ...validHistoryResult.selectedDay, groups: [{ ...validHistoryResult.selectedDay.groups[0], goalTitle: undefined }] } }],
+    ['review has malformed text', { selectedDay: { ...validHistoryResult.selectedDay, review: { completionSummary: '', encouragement: '继续前进', nextSuggestion: '明天复习' } } }],
+  ] as const)('rejects malformed nested plan history data: %s', async (_name, patch) => {
+    const result = {
+      ...validHistoryResult,
+      ...patch,
+      selectedDay: 'selectedDay' in patch && patch.selectedDay
+        ? patch.selectedDay
+        : validHistoryResult.selectedDay,
+    };
+    const caller: CloudFunctionCaller = async () => ({
+      result: { ok: true, result },
+    });
+
+    await expect(
+      getPlanHistory({ month: '2026-08', selectedDate: '2026-08-17' }, caller),
+    ).rejects.toEqual(new CloudApiError('INTERNAL_ERROR'));
   });
 
   it.each([
