@@ -6,7 +6,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "smoke:tokenhub": "npm run build --prefix cloudfunctions/plan-generate && node cloudfunctions/plan-generate/dist/plan-generate/smoke.js"
+    "smoke:tokenhub": "npm run build --prefix cloudfunctions/plan-generate && node cloudfunctions/plan-generate/dist/plan-generate/smoke.js",
+    "evaluate:daily-plan": "npm run build --prefix cloudfunctions/plan-generate && node cloudfunctions/plan-generate/dist/plan-generate/evaluation.js"
   },
   "devDependencies": {
     "@types/node": "26.1.2",

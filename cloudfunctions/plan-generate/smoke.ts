@@ -1,6 +1,7 @@
 import { validateDailyPlanStructure } from '../shared/daily-plan';
 import { createTokenHubProvider } from '../shared/tokenhub-provider';
 import { buildDailyPlanMessages } from './prompt';
+import { getDailyPlanProviderOverrides } from './provider-config';
 
 export interface TokenHubSmokeResult {
   ok: true;
@@ -31,10 +32,12 @@ export async function runTokenHubSmoke(
     availableMinutes: 15,
     goalIds: ['smoke-goal'],
   };
+  const baseUrl = env.TOKENHUB_BASE_URL?.trim() || undefined;
   const provider = createTokenHubProvider({
     apiKey,
     model,
-    baseUrl: env.TOKENHUB_BASE_URL?.trim() || undefined,
+    baseUrl,
+    ...getDailyPlanProviderOverrides(baseUrl),
     fetch: fetchRequest,
     buildMessages: buildDailyPlanMessages,
   });

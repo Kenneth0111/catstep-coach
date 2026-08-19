@@ -40,6 +40,7 @@ npm.cmd run build --prefix cloudfunctions/plan-generate
 npm.cmd run build --prefix cloudfunctions/plan-confirm
 npm.cmd run build --prefix cloudfunctions/plan-get-today
 npm.cmd run build --prefix cloudfunctions/plan-update-task
+npm.cmd run build --prefix cloudfunctions/plan-history
 npm.cmd run build --prefix cloudfunctions/review-generate
 npm.cmd run build --prefix cloudfunctions/review-confirm
 npm.cmd run build --prefix cloudfunctions/plan-resize-task
@@ -91,13 +92,15 @@ git check-ignore project.private.config.json
 - `TOKENHUB_MODEL`：已在 TokenHub 开通且符合发布要求的模型 ID，必填。
 - `TOKENHUB_BASE_URL`：可选，默认使用境内地址 `https://tokenhub.tencentmaas.com/v1`。
 
-不要把真实值写进仓库。默认单次模型请求（包含响应体读取）在 5 秒后中止；工作流最多执行首次请求、一次重试和一次结构修复，总模型等待不超过 15 秒。若 `plan-generate` 的 `TOKENHUB_BASE_URL` 指向 `api.deepseek.com`，它会显式关闭思考模式，并把单次请求上限调为 8 秒，以适配直连 DeepSeek 的响应延迟；计划工作流最多发起两次模型请求，仍低于 20 秒云函数超时。规则降级时云函数日志会记录 `daily_plan_fallback`、失败阶段和错误码，不记录提示词、响应正文或密钥。部署时使用 Node.js 20，并把两个 AI 云函数的超时设置为至少 20 秒。上述 AI 环境变量只用于 `goal-next-step` 和 `plan-generate` 两个 AI 云函数。`plan-confirm`、`plan-get-today` 和 `plan-update-task` 三个 Day 3 云函数不需要硬编码环境 ID 或 AI 环境变量；它们使用可信 `WX_OPENID` 和当前 CloudBase 环境执行用户隔离的计划读写。本地自动测试使用假的 HTTP 边界，不会调用 TokenHub 或消耗额度。
+不要把真实值写进仓库。默认单次模型请求（包含响应体读取）在 5 秒后中止；工作流最多执行首次请求、一次重试和一次结构修复，总模型等待不超过 15 秒。若 `plan-generate` 的 `TOKENHUB_BASE_URL` 指向 `api.deepseek.com`，它会显式关闭思考模式，并把单次请求上限调为 8 秒，以适配直连 DeepSeek 的响应延迟；计划工作流最多发起两次模型请求，仍低于 20 秒云函数超时。规则降级时云函数日志会记录 `daily_plan_fallback`、失败阶段和错误码，不记录提示词、响应正文或密钥。部署时使用 Node.js 20，并把四个 AI 云函数的超时设置为至少 20 秒。上述 AI 环境变量用于 `goal-next-step`、`plan-generate`、`review-generate` 和 `plan-resize-task`。`plan-confirm`、`plan-get-today` 和 `plan-update-task` 三个 Day 3 云函数不需要硬编码环境 ID 或 AI 环境变量；它们使用可信 `WX_OPENID` 和当前 CloudBase 环境执行用户隔离的计划读写。本地自动测试使用假的 HTTP 边界，不会调用 TokenHub 或消耗额度。
 
 目标引导页会依次调用三个 Day 2 云函数。`goal-confirm` 把用户确认的目标写入 `goals` 集合；`plan-generate` 只为当前微信身份拥有的活动目标生成计划。用户可在本地编辑或删除计划预览任务，再通过 `plan-confirm` 明确确认；服务端为同一用户的同一上海自然日原子地返回或创建一份计划。`plan-get-today` 只读取当前用户的已确认计划，`plan-update-task` 只更新当前用户拥有的计划任务。
 
 ## Day 5：额度、提醒与删除
 
-四个 AI 工作流在完成输入与归属校验后、调用模型前使用 CloudBase 事务声明额度。默认每个微信身份在上海自然日最多 6 次；第 7 次返回 `QUOTA_EXCEEDED`，任务开始、完成、队尾重排等确定性操作仍可用。
+四个 AI 工作流在完成输入与归属校验后、调用模型前使用 CloudBase 事务声明额度。额度由同一微信身份的 `openid` 与上海自然日共同计数，`goal-next-step`、`plan-generate`、`review-generate` 和 `plan-resize-task` 四个 AI 工作流共享同一份每日额度，而不是每个目标或每个工作流各自拥有一份。默认上限为 50 次；达到当前上限后的下一次调用返回 `QUOTA_EXCEEDED`，任务开始、完成、队尾重排等确定性操作仍可用。
+
+上线后可在 CloudBase 控制台的数据库中创建或修改 `runtime_settings` 集合内 `_id` 为 `ai_quota` 的文档，并把 `dailyAiQuota` 设为正整数，例如 `{ "_id": "ai_quota", "dailyAiQuota": 80 }`。每次 AI 调用都会在服务端事务中读取该值，因此下一次调用即按新上限执行，无需重新部署或重启。不要让客户端拥有该集合的写权限；配置缺失、零、负数或非整数时会安全回退到 50。
 
 `reminder-schedule` 仅保存当前用户当天计划的 `plan_start` 或 `review` 提醒，同一计划同类提醒只保留一条。客户端不能指定发送时间或消息正文：开始提醒由服务端安排在授权后 15 分钟，复盘提醒安排在上海时间 21:00；如果授权时已经过 21:00，则安排在 15 分钟后。今日页的按钮会在用户点击事件中直接调用 `wx.requestSubscribeMessage`，且只为本次明确允许的模板创建提醒。
 
@@ -118,7 +121,7 @@ git check-ignore project.private.config.json
 ### Day 5 真实 CloudBase 验收
 
 1. 构建并以“云端安装依赖”方式部署四个 AI 云函数以及 `reminder-schedule`、`reminder-dispatch`、`account-delete`；确认 `reminder-dispatch` 已安装 `wx-server-sdk`，且客户端不传递 OpenID、日期、发送时间、消息正文、额度或删除集合。
-2. 对同一有效 AI 工作流连续调用 7 次：前 6 次应获得原有 AI 或规则降级结果，第 7 次应返回 `QUOTA_EXCEEDED`；随后用无效输入调用，确认它不消耗额度。
+2. 使用当日 `ai_quotas.count` 为 0 的专用测试账号，把 `runtime_settings/ai_quota.dailyAiQuota` 临时设为 2。调用任意有效 AI 工作流：前 2 次允许，第 3 次返回 `QUOTA_EXCEEDED`；把值改为 3 后，无需重启或重新部署，再调用 1 次应立即允许。随后用无效输入调用，确认它不消耗额度；验收完成后恢复正式上限。不要修改历史 `ai_quotas.count` 来制造通过结果。
 3. 用真机打开当天已确认计划，点击“开启今日提醒”，允许两种一次性订阅。确认 `reminders` 产生两条 `pending` 记录：开始提醒约为当前时间加 15 分钟，复盘提醒为当日上海时间 21:00；重复创建同类提醒不能产生第二条记录。
 4. 为首次联调可在 CloudBase 数据库临时把一条测试记录的 `sendAt` 改为已过去的 ISO 时间，等待最多 5 分钟。确认微信收到对应模板消息，记录变为 `sent` 且 `dispatchCode` 为 `OK`；拒绝授权或故意使用错误模板配置时应变为 `failed`，错误码可追踪，但日志不含 OpenID、任务正文、模板正文或上游返回详情。验收后删除这条测试记录或恢复正常时间。
 5. 用两个不同微信身份分别写入测试数据；在“我的”删除第一个身份，确认仅其八个业务集合中的数据被删除，第二个身份数据保留，`deletion_audits` 不含目标或复盘正文、OpenID、密钥或上游响应。
@@ -143,6 +146,8 @@ Remove-Item Env:TOKENHUB_MODEL
 
 命令不会输出 API Key、提示词或完整模型响应。未设置两个必填环境变量时，命令在网络调用前失败。
 
+如需运行 Day 6 的 30 个脱敏每日计划结构评测，必须使用与已部署 `plan-generate` 相同的临时 `TOKENHUB_API_KEY`、`TOKENHUB_MODEL` 和 `TOKENHUB_BASE_URL` 执行 `npm.cmd run evaluate:daily-plan`；直连 DeepSeek 时不可省略 Base URL。该命令直接访问模型服务，不读取 CloudBase 的 `ai_quotas`；它会消耗 30 次模型请求，输出只含案例 ID、结构结果与安全错误码。若改为通过体验版小程序逐例评测，每例最多 4 次目标澄清和 1 次计划生成，应先把测试环境 `dailyAiQuota` 临时提高到不低于该测试账号当日现有计数加 165，为 150 次工作流调用上限和 15 次重试余量预留额度；也可以把案例分到不同专用测试账号/上海自然日。评测完成后恢复原配置。不得修改 `ai_quotas.count` 来冒充真实调用，也不要把模型正文或密钥写入验收记录。
+
 ## 手工检查目标到计划流程
 
 1. 构建并部署 `goal-next-step`、`goal-confirm`、`plan-generate`、`plan-confirm`、`plan-get-today` 和 `plan-update-task`，为两个 AI 函数配置相同的 TokenHub 环境变量。
@@ -163,6 +168,39 @@ Remove-Item Env:TOKENHUB_MODEL
 5. 确认完成后的汇总与刷新后的汇总一致；网络失败时使用重试。
 
 过期响应保护由 `tests/plan-update-task-client.test.ts` 自动化覆盖，不作为普通 UI 操作的手工验证步骤。
+
+## 部署并验收历史日历
+
+以下步骤是给第一次部署本项目的开发者使用的真实环境交接清单。仓库自动测试不代表这些 CloudBase、体验版或真机步骤已经通过。
+
+### 构建、索引与云函数上传
+
+1. 在仓库根目录构建历史云函数：
+
+   ```powershell
+   npm.cmd run build --prefix cloudfunctions/plan-history
+   ```
+
+2. 打开 CloudBase 控制台的“文档型数据库”，依次选择集合和“索引管理”。确认或创建普通、非唯一组合索引 `plans(_openid,status,date)` 和 `reviews(_openid,planId)`；字段顺序必须保持不变。`plans` 查询先按 `_openid`、`status` 等值过滤，再按 `date` 做范围过滤；这符合 CloudBase 官方文档的最左前缀与“等值条件在前、范围条件在后”规则。字段升降序按目标环境实际出现的控制台缺失索引提示创建，不在本文伪造方向或索引名称。参考：[CloudBase 索引管理](https://docs.cloudbase.net/database/data-index) 与 [CloudBase 查询性能优化](https://docs.cloudbase.net/recipes/optimize-database-query-performance)。
+3. 等待索引状态变为可用。在微信开发者工具的 `cloudfunctions/plan-history` 目录上右键，选择“上传并部署：云端安装依赖”（界面文案若略有差异，选择包含“云端安装依赖”的方式）。不要只上传本地 `dist/` 后跳过云端依赖安装。
+4. 部署完成后重新编译小程序，从 Today 顶部点击“历史”。确认当月日历出现；有已确认计划的日期显示脚印，未来日期不可选，空日期显示明确空状态，加载失败可重试。
+
+### 上传体验版并做 A/B 隔离与删除验收
+
+1. 在微信开发者工具确认所连 AppID 和 CloudBase 环境均为本次验收环境，点击“上传”，填写不含用户信息的版本号与说明。再到微信公众平台“版本管理”把该开发版选为体验版，并只添加授权测试成员。测试环境、测试账号和数据不得与生产环境混用。
+2. 使用两个不同微信测试身份，记为账号 A 与账号 B；两者分别创建匿名目标、确认至少一份历史日期计划，并按需完成任务和复盘。目标、任务和复盘只写合成测试文字，不使用真实个人内容。
+3. A 打开历史页，按月选择自己的脚印日期；确认能看到 A 的目标、任务状态与复盘，且看不到 B 的记录。B 重复同样步骤，确认只能看到 B 的记录。
+4. 删除前，在 CloudBase 控制台分别筛选 A、B 的数据；仅把八个业务集合 `goals`、`plans`、`reviews`、`memories`、`reminders`、`ai_calls`、`ai_quotas`、`users` 的计数记到本机临时验收表。表中只写集合名和 A/B 数量，不复制筛选用的身份值或任何正文。
+5. 仅从账号 A 的“我的”页执行删除。删除后重新打开 A 的历史页，确认历史清空；再次记录八个业务集合计数，确认 A 的八项均为 0，B 的每一项数量与删除前完全相同。若 B 数量变化，隔离验收失败并立即停止发布。
+6. 查看本次新增的 `deletion_audits` 文档，只允许 `_id`、`event`、`deletedAt` 等安全审计字段；不得包含 OpenID、目标正文、任务正文、复盘正文、密钥或上游响应。验收记录、截图、聊天和日志同样不得出现这些敏感值。
+
+### 真机文字放大与安全区检查
+
+1. 在测试手机的系统设置中把字体或显示文字调到该机可用的大号档位，完全退出后重新打开微信体验版。
+2. 进入历史页，切换上月和当月，并逐个选择含脚印的非未来日期；确认月历日期仍可辨认、可选择，选中态和脚印不重叠。
+3. 展开包含长合成文字的历史日期，确认目标、任务标题、完成标准与复盘文字均换行完整、不截断。
+4. 滚动到页面末尾，确认最后一项能完整滚动到底部安全区上方，不被系统手势条或微信底部区域遮挡。
+5. 以上步骤须由操作者记录实际机型、系统字号档位和通过/失败；未执行时只能写“未验证”，不得写成真机已通过。
 
 ### 2026-08-10 Day 3 验证记录
 
@@ -194,6 +232,7 @@ npm.cmd run build --prefix cloudfunctions/plan-generate
 npm.cmd run build --prefix cloudfunctions/plan-confirm
 npm.cmd run build --prefix cloudfunctions/plan-get-today
 npm.cmd run build --prefix cloudfunctions/plan-update-task
+npm.cmd run build --prefix cloudfunctions/plan-history
 ```
 
 确认对应 `package.json` 的 `main` 文件存在，再选择云端安装依赖并重新部署。

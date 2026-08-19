@@ -90,7 +90,7 @@ describe('Today loading flow', () => {
     });
   });
 
-  it('derives only unfinished next tasks and hides the list when all tasks are complete', () => {
+  it('keeps completed tasks available for the Today view', () => {
     const partiallyComplete: TodayPlan = {
       ...plan,
       tasks: [
@@ -106,11 +106,16 @@ describe('Today loading flow', () => {
     expect(receiveTodayPlan(createTodayFlowState(), partiallyComplete)).toMatchObject({
       currentTask: { id: 'pending' },
       nextTasks: [],
+      completedTasks: [{ id: 'completed', status: 'completed' }],
       summary: { remainingCount: 1, remainingMinutes: 30 },
     });
     expect(receiveTodayPlan(createTodayFlowState(), allComplete)).toMatchObject({
       currentTask: null,
       nextTasks: [],
+      completedTasks: [
+        { id: 'completed', status: 'completed' },
+        { id: 'pending', status: 'completed' },
+      ],
       summary: { remainingCount: 0, remainingMinutes: 0 },
     });
   });

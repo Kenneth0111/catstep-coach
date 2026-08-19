@@ -1,0 +1,90 @@
+<view class="history-page">
+  <view class="history-header">
+    <navigator class="today-link" url="/pages/today/index" open-type="redirect">返回 Today</navigator>
+    <text class="eyebrow">历史脚印</text>
+    <text class="history-title">{{monthTitle}}</text>
+    <text class="history-copy">选一天，看看当时走过的目标、任务与复盘。</text>
+  </view>
+
+  <view class="month-navigation" aria-label="月份切换">
+    <button class="month-button" bindtap="onPreviousMonth" aria-label="上一个月">上月</button>
+    <text class="month-label">{{monthTitle}}</text>
+    <button class="month-button" bindtap="onNextMonth" disabled="{{!canGoNext}}" aria-label="下一个月">下月</button>
+  </view>
+
+  <view class="calendar-card">
+    <view class="weekday-row" aria-label="星期">
+      <text class="weekday">一</text>
+      <text class="weekday">二</text>
+      <text class="weekday">三</text>
+      <text class="weekday">四</text>
+      <text class="weekday">五</text>
+      <text class="weekday">六</text>
+      <text class="weekday">日</text>
+    </view>
+    <view class="calendar-grid">
+      <block wx:for="{{calendarCells}}" wx:key="key">
+        <button wx:if="{{!item.empty}}" class="calendar-day {{item.selected ? 'is-selected' : ''}}" data-date="{{item.date}}" bindtap="onSelectDate" disabled="{{item.future}}" aria-label="{{item.ariaLabel}}">
+          <text class="day-number">{{item.day}}</text>
+          <view class="paw-icon" wx:if="{{item.hasPlan}}" aria-label="这一天有计划">
+            <view class="paw-toe paw-toe-1"></view>
+            <view class="paw-toe paw-toe-2"></view>
+            <view class="paw-toe paw-toe-3"></view>
+            <view class="paw-toe paw-toe-4"></view>
+            <view class="paw-pad"></view>
+          </view>
+        </button>
+        <view wx:else class="calendar-day calendar-empty" aria-hidden="true"></view>
+      </block>
+    </view>
+  </view>
+
+  <view class="state-card" wx:if="{{flow.stage === 'loading'}}">
+    <text class="state-title">正在翻找过去的脚印…</text>
+    <text>正在读取 {{flow.selectedDate}} 的计划。</text>
+  </view>
+
+  <view class="state-card error-state" wx:if="{{flow.stage === 'error'}}">
+    <text class="state-title">脚印停了一下</text>
+    <text>{{errorMessage}}</text>
+    <button class="retry-button" bindtap="onRetry">再试一次</button>
+  </view>
+
+  <block wx:if="{{flow.stage === 'ready'}}">
+    <view class="state-card" wx:if="{{!flow.result.selectedDay}}">
+      <text class="state-title">这一天还没有留下计划</text>
+      <text>可以继续选择其他有猫咪脚印的日期。</text>
+    </view>
+
+    <view class="day-detail" wx:else>
+      <view class="detail-heading">
+        <text class="detail-date">{{flow.result.selectedDay.date}}</text>
+        <text class="detail-time">计划 {{flow.result.selectedDay.availableMinutes}} 分钟</text>
+      </view>
+      <text class="detail-summary">{{flow.result.selectedDay.summary}}</text>
+
+      <view class="goal-group" wx:for="{{flow.result.selectedDay.groups}}" wx:key="goalId" wx:for-item="group">
+        <text class="goal-title">{{group.goalTitle}}</text>
+        <view class="history-task" wx:for="{{group.tasks}}" wx:key="id">
+          <view class="task-heading">
+            <text class="task-title">{{item.title}}</text>
+            <text class="task-time">{{item.estimatedMinutes}} 分钟</text>
+          </view>
+          <text class="task-criteria">完成标准：{{item.doneCriteria}}</text>
+          <text class="task-status">状态：{{item.status === 'completed' ? '已完成' : (item.status === 'in_progress' ? '进行中' : '未开始')}}</text>
+          <text class="task-feedback" wx:if="{{item.difficultyFeedback}}">难度反馈：{{item.difficultyFeedback === 'easy' ? '轻松' : (item.difficultyFeedback === 'just_right' ? '刚刚好' : '有挑战')}}</text>
+        </view>
+      </view>
+
+      <view class="review-card" wx:if="{{flow.result.selectedDay.review}}">
+        <text class="review-title">当天复盘</text>
+        <text class="review-copy">{{flow.result.selectedDay.review.completionSummary}}</text>
+        <text class="review-copy">{{flow.result.selectedDay.review.encouragement}}</text>
+        <text class="review-copy">下一步：{{flow.result.selectedDay.review.nextSuggestion}}</text>
+      </view>
+      <view class="review-card review-empty" wx:else>
+        <text class="review-title">这一天还没有复盘</text>
+      </view>
+    </view>
+  </block>
+</view>
