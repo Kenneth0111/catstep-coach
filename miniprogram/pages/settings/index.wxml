@@ -1,0 +1,26 @@
+<view class="settings-page">
+  <view class="page-heading">
+    <text class="eyebrow">安心使用</text>
+    <text class="page-title">设置与说明</text>
+    <text class="page-copy">关于 AI 建议、数据保护和账户管理。</text>
+  </view>
+
+  <view class="settings-card">
+    <view class="setting-row">
+      <text class="setting-title">AI 生成内容</text>
+      <text class="setting-copy">建议只作学习和工作辅助，是否采纳由你决定。请不要输入密钥、身份证号或其他敏感信息。</text>
+    </view>
+    <view class="setting-row">
+      <text class="setting-title">隐私与数据</text>
+      <text class="setting-copy">数据按当前微信身份隔离；技术日志不保存你的目标和复盘正文。</text>
+    </view>
+  </view>
+
+  <view class="danger-card">
+    <text class="danger-label">账户数据</text>
+    <text class="setting-title">删除全部数据</text>
+    <text class="setting-copy">删除目标、计划、复盘、记忆和提醒，操作完成后无法恢复。</text>
+    <button class="danger-action" bindtap="onDeleteAccount" loading="{{deleting}}" disabled="{{deleting}}">删除全部数据</button>
+    <text wx:if="{{message}}" class="delete-message" aria-live="polite">{{message}}</text>
+  </view>
+</view>

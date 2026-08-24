@@ -14,6 +14,10 @@ Component({
       type: Boolean,
       value: false,
     },
+    canStart: {
+      type: Boolean,
+      value: true,
+    },
   },
 
   data: {
@@ -28,7 +32,7 @@ Component({
 
   methods: {
     onStart() {
-      if (this.properties.updating) {
+      if (this.properties.updating || !this.properties.canStart) {
         return;
       }
       const task = this.properties.task as TodayTask;

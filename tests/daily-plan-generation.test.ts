@@ -49,6 +49,40 @@ describe('generateDailyPlan', () => {
     ).resolves.toEqual({ plan: validCandidate, source: 'ai' });
   });
 
+  it('serializes the default max task count in a direct provider request', async () => {
+    const provider = {
+      generateStructured: vi.fn(async () => validCandidate),
+    };
+
+    await generateDailyPlan(
+      { availableMinutes: 60, goalIds: ['goal-1'] },
+      provider,
+    );
+
+    expect(provider.generateStructured).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({ maxTasks: 5 }),
+      }),
+    );
+  });
+
+  it('serializes an explicit max task count in a direct provider request', async () => {
+    const provider = {
+      generateStructured: vi.fn(async () => validCandidate),
+    };
+
+    await generateDailyPlan(
+      { availableMinutes: 60, goalIds: ['goal-1'], maxTasks: 2 },
+      provider,
+    );
+
+    expect(provider.generateStructured).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({ maxTasks: 2 }),
+      }),
+    );
+  });
+
   it('returns a valid repaired result after invalid AI output', async () => {
     const results = [
       { ...validCandidate, tasks: [] },
@@ -251,6 +285,34 @@ describe('generateDailyPlan', () => {
     });
   });
 
+  it('keeps the trusted task capacity in fallback generation requests', async () => {
+    const requests: StructuredGenerationRequest[] = [];
+    const provider = {
+      generateStructured: async (request: StructuredGenerationRequest) => {
+        requests.push(request);
+        throw new Error('provider unavailable');
+      },
+    };
+
+    await expect(
+      generateDailyPlan(
+        { availableMinutes: 60, goalIds: ['goal-1'], maxTasks: 2 },
+        provider,
+      ),
+    ).resolves.toMatchObject({
+      source: 'fallback',
+      plan: { tasks: [expect.any(Object)] },
+    });
+    expect(requests).toHaveLength(2);
+    expect(requests).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          input: expect.objectContaining({ maxTasks: 2 }),
+        }),
+      ]),
+    );
+  });
+
   it('rejects generation without a confirmed goal', async () => {
     const provider = {
       generateStructured: async () => {
@@ -275,6 +337,24 @@ describe('generateDailyPlan', () => {
       await expect(
         generateDailyPlan(
           { availableMinutes, goalIds: ['goal-1'] },
+          provider,
+        ),
+      ).rejects.toThrow(new DailyPlanGenerationError('INVALID_CONTEXT'));
+    },
+  );
+
+  it.each([0, 6, 1.5])(
+    'rejects generation with invalid max tasks: %s',
+    async (maxTasks) => {
+      const provider = {
+        generateStructured: async () => {
+          throw new Error('provider must not be called');
+        },
+      };
+
+      await expect(
+        generateDailyPlan(
+          { availableMinutes: 60, goalIds: ['goal-1'], maxTasks },
           provider,
         ),
       ).rejects.toThrow(new DailyPlanGenerationError('INVALID_CONTEXT'));

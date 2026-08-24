@@ -15,7 +15,14 @@ export interface PlanConfirmationInput {
 export interface PersistedDailyPlanTask extends DailyPlanTask {
   id: string;
   priority: number;
-  status: 'pending';
+  status: 'pending' | 'in_progress' | 'completed';
+  startRequestId?: string;
+  startedAt?: string;
+  completeRequestId?: string;
+  completedAt?: string;
+  difficultyFeedback?: 'easy' | 'just_right' | 'hard';
+  resizeRequestId?: string;
+  resizedAt?: string;
 }
 
 export interface PersistedDailyPlan {
@@ -29,6 +36,7 @@ export interface PersistedDailyPlan {
   requestId: string;
   version: 1;
   createdAt: string;
+  processedRequestIds?: string[];
 }
 
 export interface ConfirmedDailyPlan extends PersistedDailyPlan {
@@ -40,16 +48,30 @@ export interface DailyPlanRepository {
     openid: string,
     goalIds: readonly string[],
   ): Promise<string[]>;
-  saveIfAbsent(
+  createOrAppend(
     documentId: string,
-    plan: PersistedDailyPlan,
+    incoming: PersistedDailyPlan,
+    merge: (current: PersistedDailyPlan) => PersistedDailyPlan,
   ): Promise<ConfirmedDailyPlan>;
 }
 
+export type PlanConfirmationCode = 'INVALID_CONTEXT' | 'LIMIT_REACHED';
+
 export class PlanConfirmationError extends Error {
-  constructor(readonly code: 'INVALID_CONTEXT') {
+  constructor(readonly code: PlanConfirmationCode) {
     super(code);
     this.name = 'PlanConfirmationError';
+  }
+}
+
+export type PlanConfirmationFailureStage =
+  | 'find_active_goals'
+  | 'persist_plan';
+
+export class PlanConfirmationInternalError extends Error {
+  constructor(readonly stage: PlanConfirmationFailureStage) {
+    super(stage);
+    this.name = 'PlanConfirmationInternalError';
   }
 }
 
@@ -98,6 +120,59 @@ export function createPlanDocumentId(openid: string, date: string): string {
     .slice(0, 32);
 }
 
+function ensurePlanLimits(
+  goalIds: Iterable<string>,
+  taskCount: number,
+): number {
+  const goalCount = new Set(goalIds).size;
+  if (goalCount > 3 || taskCount > 10) {
+    throw new PlanConfirmationError('LIMIT_REACHED');
+  }
+  return goalCount;
+}
+
+export function mergeConfirmedPlan(
+  documentId: string,
+  current: PersistedDailyPlan,
+  incoming: PersistedDailyPlan,
+): PersistedDailyPlan {
+  const processed = new Set(current.processedRequestIds ?? [current.requestId]);
+  if (processed.has(incoming.requestId)) {
+    return current;
+  }
+
+  const currentGoalIds = new Set(current.tasks.map((task) => task.goalId));
+  const incomingGoalIds = new Set(incoming.tasks.map((task) => task.goalId));
+  if ([...incomingGoalIds].every((goalId) => currentGoalIds.has(goalId))) {
+    return current;
+  }
+  if ([...incomingGoalIds].some((goalId) => currentGoalIds.has(goalId))) {
+    throw new PlanConfirmationError('INVALID_CONTEXT');
+  }
+
+  const taskCount = current.tasks.length + incoming.tasks.length;
+  const goalCount = ensurePlanLimits(
+    [...currentGoalIds, ...incomingGoalIds],
+    taskCount,
+  );
+
+  const offset = current.tasks.length;
+  return {
+    ...current,
+    availableMinutes: current.availableMinutes + incoming.availableMinutes,
+    summary: `今天有 ${goalCount} 个目标，安排了 ${taskCount} 个小步。`,
+    tasks: [
+      ...current.tasks,
+      ...incoming.tasks.map((task, index) => ({
+        ...task,
+        id: `${documentId}-${offset + index + 1}`,
+        priority: offset + index + 1,
+      })),
+    ],
+    processedRequestIds: [...processed, incoming.requestId],
+  };
+}
+
 export async function confirmDailyPlan(
   openid: string,
   input: unknown,
@@ -124,9 +199,15 @@ export async function confirmDailyPlan(
 
   const currentTime = now();
   const date = shanghaiDate.format(currentTime);
-  const ownedGoalIds = new Set(
-    await repository.findActiveGoalIds(openid, goalIds),
-  );
+  let ownedGoalIds: Set<string>;
+  try {
+    ownedGoalIds = new Set(await repository.findActiveGoalIds(openid, goalIds));
+  } catch (error) {
+    if (error instanceof PlanConfirmationError) {
+      throw error;
+    }
+    throw new PlanConfirmationInternalError('find_active_goals');
+  }
   if (goalIds.some((goalId) => !ownedGoalIds.has(goalId))) {
     throw new PlanConfirmationError('INVALID_CONTEXT');
   }
@@ -154,7 +235,22 @@ export async function confirmDailyPlan(
     requestId: input.requestId.trim(),
     version: 1,
     createdAt: currentTime.toISOString(),
+    processedRequestIds: [input.requestId.trim()],
   } satisfies PersistedDailyPlan;
 
-  return repository.saveIfAbsent(documentId, persisted);
+  ensurePlanLimits(
+    persisted.tasks.map((task) => task.goalId),
+    persisted.tasks.length,
+  );
+
+  try {
+    return await repository.createOrAppend(documentId, persisted, (current) =>
+      mergeConfirmedPlan(documentId, current, persisted),
+    );
+  } catch (error) {
+    if (error instanceof PlanConfirmationError) {
+      throw error;
+    }
+    throw new PlanConfirmationInternalError('persist_plan');
+  }
 }

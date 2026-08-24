@@ -13,15 +13,6 @@
   margin-bottom: 30rpx;
 }
 
-.today-link {
-  display: flex;
-  align-self: flex-start;
-  align-items: center;
-  min-height: 88rpx;
-  color: #356f63;
-  font-size: 28rpx;
-}
-
 .eyebrow {
   align-self: flex-start;
   padding-bottom: 4rpx;
@@ -36,7 +27,7 @@
   margin-top: 12rpx;
   color: #3f3a31;
   font-size: 48rpx;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.35;
 }
 

@@ -7,6 +7,9 @@ function repository(): TodayPlanRepository {
     async findConfirmedByDate() {
       return null;
     },
+    async findOwnedGoalTitles() {
+      return {};
+    },
   };
 }
 
@@ -47,6 +50,9 @@ describe('plan.getToday handler', () => {
       createRepository: () => ({
         async findConfirmedByDate() {
           throw new Error('database-secret');
+        },
+        async findOwnedGoalTitles() {
+          return {};
         },
       }),
       now: () => new Date(),

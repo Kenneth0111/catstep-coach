@@ -7,6 +7,10 @@ const entries = {
   'goal-next-step': './dist/goal-next-step/index.js',
   'goal-confirm': './dist/goal-confirm/index.js',
   'plan-generate': './dist/plan-generate/index.js',
+  'plan-confirm': './dist/plan-confirm/index.js',
+  'plan-get-today': './dist/plan-get-today/index.js',
+  'plan-update-task': './dist/plan-update-task/index.js',
+  'plan-resize-task': './dist/plan-resize-task/index.js',
 };
 
 describe('CloudBase deployment entries', () => {

@@ -44,6 +44,7 @@ describe('plan.confirm cloud function structure', () => {
     expect(repository).toContain('database.runTransaction');
     expect(repository).toContain('.doc(documentId)');
     expect(repository).toContain('await document.get()');
-    expect(repository).toContain('await document.set(plan)');
+    expect(repository).toContain('await document.set(incoming)');
+    expect(repository).toContain('await document.update(merged)');
   });
 });

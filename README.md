@@ -67,8 +67,9 @@ AI 能力拆分为 `clarifyGoal`、`generateDailyPlan`、`resizeTask` 和 `gener
 - [x] Day 5 AI 每日额度、订阅消息授权与派发、隐私提示及账户删除代码
 - [x] Day 6 脱敏每日计划评测集、自动契约检查与体验版验收文档
 - [x] 按月查看本人已确认计划、任务状态与复盘的只读历史日历
+- [x] 真实累计成长值、最近复盘成长事件与三级小橘成长页
 - [x] 真实模型连通验证（`deepseek-v4-flash` 直连 DeepSeek）
-- [ ] 目标、执行、复盘和成长的完整 UI
+- [x] 目标、执行、复盘和成长的完整 UI
 - [ ] 自动化端到端测试、完整真机验收与体验版部署
 
 ## 文档
@@ -83,6 +84,8 @@ AI 能力拆分为 `clarifyGoal`、`generateDailyPlan`、`resizeTask` 和 `gener
 - [Day 5 可靠性与隐私设计](docs/superpowers/specs/2026-08-13-day5-reliability-privacy-design.md)
 - [Day 5 可靠性与隐私实施计划](docs/superpowers/plans/2026-08-13-day5-reliability-privacy.md)
 - [Day 6 质量、评测与体验版验收](docs/day6-quality-release.md)
+- [成长角色素材包与成长页设计](docs/superpowers/specs/2026-08-19-growth-character-pack-design.md)
+- [成长角色素材包与成长页实施计划](docs/superpowers/plans/2026-08-19-growth-character-pack.md)
 
 ## MVP 验收重点
 

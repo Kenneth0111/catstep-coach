@@ -1,5 +1,69 @@
 <view class="profile-page">
-  <view class="card"><text class="title">AI 生成内容</text><text>建议由 AI 生成，只作学习和工作辅助；你始终决定是否采纳。请不要输入密钥、身份证号或医疗、法律、投资等敏感信息。</text></view>
-  <view class="card"><text class="title">隐私与数据</text><text>数据按当前微信身份隔离。AI 运行日志仅记录脱敏技术元数据，不保存你的目标、复盘正文或密钥。</text></view>
-  <view class="card"><text class="title">删除全部数据</text><text>删除后无法恢复。</text><button bindtap="onDeleteAccount" loading="{{deleting}}" disabled="{{deleting}}">删除全部数据</button><text wx:if="{{message}}">{{message}}</text></view>
+  <view wx:if="{{stage === 'loading'}}" class="state-card" aria-live="polite">
+    <text class="state-title">小橘正在整理你的成长记录…</text>
+    <text class="state-copy">很快就好。</text>
+  </view>
+
+  <view wx:elif="{{stage === 'error'}}" class="state-card" aria-live="assertive">
+    <text class="state-title">成长记录暂时没有加载出来</text>
+    <text class="state-copy">请检查网络后再试一次。</text>
+    <button class="secondary-action" bindtap="onRetry">重新加载</button>
+  </view>
+
+  <block wx:else>
+    <view class="hero-card">
+      <view class="hero-copy">
+        <text class="eyebrow">第 {{level.number}} 阶段</text>
+        <text class="hero-title">{{level.name}}</text>
+        <text class="hero-subtitle">每次认真复盘，都会让小橘和你一起成长。</text>
+      </view>
+      <view
+        class="character-button {{characterMotion ? 'character-button--active' : ''}}"
+        role="button"
+        tabindex="0"
+        aria-label="{{character.alt}}，点击和小橘互动"
+        bindtap="onTapCharacter"
+      >
+        <image class="character-image" src="{{character.src}}" mode="aspectFit" alt="{{character.alt}}" />
+        <text class="interaction-hint">点一点小橘</text>
+      </view>
+    </view>
+
+    <view class="growth-card">
+      <view class="growth-heading">
+        <text class="section-title">成长值</text>
+        <text class="growth-number">{{growth}}</text>
+      </view>
+      <view class="progress-track" role="progressbar" aria-label="当前阶段成长进度 {{growthPercent}}%">
+        <view class="progress-value" style="width: {{growthPercent}}%;"></view>
+      </view>
+      <text class="supporting-copy">{{progressText}}</text>
+    </view>
+
+    <view class="history-card">
+      <text class="section-title">最近成长</text>
+      <view wx:if="{{recentAwards.length === 0}}" class="empty-history">
+        <text>完成一次晚间复盘后，成长记录会出现在这里。</text>
+      </view>
+      <view wx:else class="award-list">
+        <view wx:for="{{recentAwards}}" wx:key="date" class="award-item">
+          <view class="award-mark"></view>
+          <view class="award-copy">
+            <text class="award-title">完成晚间复盘</text>
+            <text class="award-date">{{item.date}}</text>
+          </view>
+          <text class="award-value">+{{item.growthAwarded}}</text>
+        </view>
+      </view>
+    </view>
+
+  </block>
+
+  <navigator class="settings-entry" url="/pages/settings/index" open-type="navigate">
+    <view>
+      <text class="settings-entry-title">设置与说明</text>
+      <text class="settings-entry-copy">隐私、AI 说明与账户数据</text>
+    </view>
+    <text class="settings-entry-arrow" aria-hidden="true">›</text>
+  </navigator>
 </view>

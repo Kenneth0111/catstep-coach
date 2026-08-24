@@ -28,6 +28,7 @@ export interface DailyPlanConstraints {
   availableMinutes: number;
   goalIds: readonly string[];
   goals?: readonly DailyPlanGoalContext[];
+  maxTasks?: number;
 }
 
 export type DailyPlanValidationCode =
@@ -86,7 +87,14 @@ export function validateDailyPlanStructure(
     throw new DailyPlanValidationError('INCOMPLETE_FIELD');
   }
 
-  if (candidate.tasks.length < 1 || candidate.tasks.length > 5) {
+  const maxTasks = constraints.maxTasks ?? 5;
+  if (
+    !Number.isInteger(maxTasks) ||
+    maxTasks < 1 ||
+    maxTasks > 5 ||
+    candidate.tasks.length < 1 ||
+    candidate.tasks.length > maxTasks
+  ) {
     throw new DailyPlanValidationError('TASK_COUNT');
   }
 

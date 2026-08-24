@@ -1,0 +1,106 @@
+.settings-page {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 40rpx 24rpx calc(48rpx + env(safe-area-inset-bottom));
+  background:
+    radial-gradient(circle at 90% 4%, rgba(213, 166, 63, 0.15), transparent 26%),
+    #f7f0df;
+  color: #40372f;
+}
+
+.page-heading {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 28rpx;
+  padding: 0 8rpx;
+}
+
+.eyebrow,
+.danger-label {
+  align-self: flex-start;
+  color: #356f63;
+  font-size: 25rpx;
+  font-weight: 600;
+  letter-spacing: 2rpx;
+}
+
+.page-title {
+  margin-top: 10rpx;
+  color: #3f3a31;
+  font-size: 46rpx;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.page-copy,
+.setting-copy {
+  color: #71695d;
+  font-size: 28rpx;
+}
+
+.page-copy {
+  margin-top: 6rpx;
+}
+
+.settings-card,
+.danger-card {
+  box-sizing: border-box;
+  margin-bottom: 20rpx;
+  padding: 8rpx 30rpx;
+  background: rgba(255, 250, 240, 0.94);
+  border: 2rpx solid rgba(93, 81, 59, 0.16);
+  border-radius: 24rpx;
+  box-shadow: 0 12rpx 28rpx rgba(91, 76, 49, 0.07);
+}
+
+.setting-row {
+  padding: 28rpx 0;
+  border-bottom: 2rpx solid #efe5d2;
+}
+
+.setting-row:last-child {
+  border-bottom: 0;
+}
+
+.setting-title {
+  display: block;
+  margin-bottom: 8rpx;
+  color: #40372f;
+  font-size: 31rpx;
+  font-weight: 700;
+}
+
+.danger-card {
+  padding-top: 28rpx;
+  padding-bottom: 28rpx;
+  border-color: rgba(163, 58, 43, 0.22);
+}
+
+.danger-label {
+  display: block;
+  margin-bottom: 12rpx;
+  color: #983d30;
+}
+
+.danger-action {
+  min-height: 88rpx;
+  margin: 24rpx 0 0;
+  color: #983d30;
+  font-size: 30rpx;
+  font-weight: 600;
+  background: #fff2ed;
+  border: 2rpx solid #e7c2b9;
+  border-radius: 14rpx;
+}
+
+.danger-action::after {
+  border: 0;
+}
+
+.delete-message {
+  display: block;
+  margin-top: 16rpx;
+  color: #725623;
+  font-size: 27rpx;
+  text-align: center;
+}

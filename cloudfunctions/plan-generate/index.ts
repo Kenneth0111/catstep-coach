@@ -8,6 +8,28 @@ interface StoredGoal {
   stage: string;
 }
 
+interface StoredPlan {
+  tasks: Array<{ goalId: string }>;
+}
+
+interface GoalCollection {
+  where(query: Record<string, unknown>): {
+    get(): Promise<{ data: StoredGoal[] }>;
+  };
+}
+
+interface PlanCollection {
+  where(query: {
+    _openid: string;
+    date: string;
+    status: 'confirmed';
+  }): {
+    limit(count: number): {
+      get(): Promise<{ data: StoredPlan[] }>;
+    };
+  };
+}
+
 const cloudbase = require('@cloudbase/node-sdk') as {
   SYMBOL_CURRENT_ENV: string;
   getCloudbaseContext(context: unknown): { WX_OPENID?: string };
@@ -15,11 +37,8 @@ const cloudbase = require('@cloudbase/node-sdk') as {
     database(): {
       command: { in(values: readonly string[]): unknown };
       runTransaction<T>(update: (transaction: any) => Promise<T>): Promise<T | { result: T }>;
-      collection(name: string): {
-        where(query: Record<string, unknown>): {
-          get(): Promise<{ data: StoredGoal[] }>;
-        };
-      };
+      collection(name: 'goals'): GoalCollection;
+      collection(name: 'plans'): PlanCollection;
     };
   };
 };
@@ -34,6 +53,7 @@ const app = cloudbase.init({ env: cloudbase.SYMBOL_CURRENT_ENV });
 const database = app.database();
 const claimQuota = createCloudbaseQuotaClaimer(database, () => new Date());
 const goals = database.collection('goals');
+const plans = database.collection('plans');
 
 function createRepository(): OwnedGoalRepository {
   return {
@@ -52,6 +72,20 @@ function createRepository(): OwnedGoalRepository {
         currentProgress: goal.currentProgress,
         stage: goal.stage,
       }));
+    },
+    async getTodayCapacity(openid, date) {
+      const result = await plans
+        .where({ _openid: openid, date, status: 'confirmed' })
+        .limit(1)
+        .get();
+      const plan = result.data[0];
+      if (!plan) {
+        return null;
+      }
+      return {
+        goalIds: [...new Set(plan.tasks.map((task) => task.goalId))],
+        taskCount: plan.tasks.length,
+      };
     },
   };
 }

@@ -1,0 +1,22 @@
+<view class="bottom-nav {{fixed ? 'bottom-nav--fixed' : ''}}" role="navigation" aria-label="主导航">
+  <button
+    wx:for="{{items}}"
+    wx:key="url"
+    class="nav-item {{activePath === item.url ? 'is-active' : ''}}"
+    data-url="{{item.url}}"
+    bindtap="onTap"
+    aria-current="{{activePath === item.url ? 'page' : 'false'}}"
+    aria-label="{{item.label}}"
+  >
+    <view wx:if="{{activePath === item.url}}" class="nav-paw">
+      <image
+        class="nav-paw__art"
+        src="/assets/navigation/paw-active.png"
+        mode="aspectFit"
+        aria-hidden="true"
+      />
+      <text class="nav-label nav-label--active">{{item.label}}</text>
+    </view>
+    <text wx:else class="nav-label">{{item.label}}</text>
+  </button>
+</view>

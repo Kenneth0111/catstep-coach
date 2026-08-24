@@ -13,6 +13,7 @@ export type PublicErrorCode =
   | 'UNAUTHENTICATED'
   | 'INVALID_CONTEXT'
   | 'MISCONFIGURED'
+  | 'LIMIT_REACHED'
   | 'QUOTA_EXCEEDED'
   | 'INTERNAL_ERROR';
 

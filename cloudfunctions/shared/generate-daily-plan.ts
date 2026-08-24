@@ -73,15 +73,20 @@ export async function generateDailyPlan(
   if (
     !input.goalIds[0]?.trim() ||
     !Number.isInteger(input.availableMinutes) ||
-    input.availableMinutes <= 0
+    input.availableMinutes <= 0 ||
+    (input.maxTasks !== undefined &&
+      (!Number.isInteger(input.maxTasks) ||
+        input.maxTasks < 1 ||
+        input.maxTasks > 5))
   ) {
     throw new DailyPlanGenerationError('INVALID_CONTEXT');
   }
 
+  const normalizedInput = { ...input, maxTasks: input.maxTasks ?? 5 };
   const request = {
     workflow: 'generateDailyPlan',
     promptVersion: 'daily-plan-v1',
-    input,
+    input: normalizedInput,
   };
   let candidate: unknown;
   try {
@@ -91,13 +96,13 @@ export async function generateDailyPlan(
       candidate = await provider.generateStructured(request);
     } catch (retryError) {
       logFallback('provider_unavailable', retryError);
-      return createFallbackResult(input);
+      return createFallbackResult(normalizedInput);
     }
   }
 
   try {
     return {
-      plan: validateDailyPlanStructure(candidate, input),
+      plan: validateDailyPlanStructure(candidate, normalizedInput),
       source: 'ai',
     };
   } catch (error) {
@@ -116,18 +121,18 @@ export async function generateDailyPlan(
       });
     } catch (repairRequestError) {
       logFallback('repair_unavailable', repairRequestError);
-      return createFallbackResult(input);
+      return createFallbackResult(normalizedInput);
     }
 
     try {
       return {
-        plan: validateDailyPlanStructure(repairedCandidate, input),
+        plan: validateDailyPlanStructure(repairedCandidate, normalizedInput),
         source: 'repaired',
       };
     } catch (repairError) {
       if (repairError instanceof DailyPlanValidationError) {
         logFallback('repair_invalid', repairError);
-        return createFallbackResult(input);
+        return createFallbackResult(normalizedInput);
       }
       throw repairError;
     }
