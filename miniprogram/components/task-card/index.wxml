@@ -13,21 +13,23 @@
     wx:if="{{primary && task.status === 'pending'}}"
     class="task-card__button"
     hover-class="task-card__button--pressed"
-    disabled="{{updating}}"
+    disabled="{{updating || !canStart}}"
     bindtap="onStart"
   >开始这一小步</button>
+  <text wx:if="{{primary && task.status === 'pending' && !canStart}}" class="task-card__blocked">先完成这个目标正在进行的一步</text>
   <view wx:if="{{primary && task.status === 'pending'}}" class="task-card__choices">
-    <button disabled="{{updating}}" bindtap="onResize">缩小任务</button>
-    <button disabled="{{updating}}" bindtap="onMoveToEnd">稍后再做</button>
+    <button class="task-card__choice" disabled="{{updating}}" bindtap="onResize">缩小任务</button>
+    <button class="task-card__choice" disabled="{{updating}}" bindtap="onMoveToEnd">稍后再做</button>
   </view>
 
   <view wx:if="{{primary && task.status === 'in_progress'}}" class="task-card__feedback">
     <text>这一步的难度如何？</text>
     <view class="task-card__choices">
-      <button class="task-card__difficulty {{selectedDifficulty === 'easy' ? 'task-card__difficulty--selected' : ''}}" data-difficulty="easy" disabled="{{updating}}" bindtap="onSelectDifficulty">容易</button>
-      <button class="task-card__difficulty {{selectedDifficulty === 'just_right' ? 'task-card__difficulty--selected' : ''}}" data-difficulty="just_right" disabled="{{updating}}" bindtap="onSelectDifficulty">刚刚好</button>
-      <button class="task-card__difficulty {{selectedDifficulty === 'hard' ? 'task-card__difficulty--selected' : ''}}" data-difficulty="hard" disabled="{{updating}}" bindtap="onSelectDifficulty">有点难</button>
+      <button class="task-card__choice task-card__difficulty {{selectedDifficulty === 'easy' ? 'task-card__difficulty--selected' : ''}}" data-difficulty="easy" disabled="{{updating}}" bindtap="onSelectDifficulty">容易</button>
+      <button class="task-card__choice task-card__difficulty {{selectedDifficulty === 'just_right' ? 'task-card__difficulty--selected' : ''}}" data-difficulty="just_right" disabled="{{updating}}" bindtap="onSelectDifficulty">刚刚好</button>
+      <button class="task-card__choice task-card__difficulty {{selectedDifficulty === 'hard' ? 'task-card__difficulty--selected' : ''}}" data-difficulty="hard" disabled="{{updating}}" bindtap="onSelectDifficulty">有点难</button>
     </view>
     <button class="task-card__button" disabled="{{updating || !selectedDifficulty}}" bindtap="onComplete">完成这一小步</button>
+    <button class="task-card__secondary" disabled="{{updating}}" bindtap="onResize">缩小任务</button>
   </view>
 </view>

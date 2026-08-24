@@ -17,19 +17,32 @@ export interface OwnedGoal {
   stage: string;
 }
 
+export interface TodayCapacity {
+  goalIds: string[];
+  taskCount: number;
+}
+
 export interface OwnedGoalRepository {
   findActiveByIds(
     openid: string,
     goalIds: readonly string[],
   ): Promise<OwnedGoal[]>;
+  getTodayCapacity(openid: string, date: string): Promise<TodayCapacity | null>;
 }
 
 export class PlanGenerationServiceError extends Error {
-  constructor(readonly code: 'INVALID_CONTEXT') {
+  constructor(readonly code: 'INVALID_CONTEXT' | 'LIMIT_REACHED') {
     super(code);
     this.name = 'PlanGenerationServiceError';
   }
 }
+
+const shanghaiDate = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Shanghai',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -64,6 +77,7 @@ export async function generateOwnedDailyPlan(
   repository: OwnedGoalRepository,
   createProvider: () => AIProvider,
   claimQuota: () => Promise<void> = async () => undefined,
+  now: () => Date = () => new Date(),
 ): Promise<DailyPlanGenerationResult> {
   if (!openid.trim() || !isPlanInput(input)) {
     throw new PlanGenerationServiceError('INVALID_CONTEXT');
@@ -83,6 +97,26 @@ export async function generateOwnedDailyPlan(
     return goal;
   });
 
+  const capacity = await repository.getTodayCapacity(
+    openid,
+    shanghaiDate.format(now()),
+  );
+  if (
+    (capacity?.goalIds.length ?? 0) >= 3 ||
+    (capacity?.taskCount ?? 0) >= 10 ||
+    new Set([...(capacity?.goalIds ?? []), ...input.goalIds]).size > 3 ||
+    input.goalIds.some((goalId) => capacity?.goalIds.includes(goalId))
+  ) {
+    throw new PlanGenerationServiceError('LIMIT_REACHED');
+  }
+
   await claimQuota();
-  return generateDailyPlan({ ...input, goals }, createProvider());
+  return generateDailyPlan(
+    {
+      ...input,
+      goals,
+      maxTasks: Math.min(5, 10 - (capacity?.taskCount ?? 0)),
+    },
+    createProvider(),
+  );
 }

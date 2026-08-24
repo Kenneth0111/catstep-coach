@@ -6,7 +6,11 @@ import type {
   PlanPreview,
   PublicErrorCode,
 } from './goal-flow';
-import type { TodayPlan } from './today-flow';
+import type {
+  TodayDashboardPlan,
+  TodayPlan,
+  TodayPlanTask,
+} from './today-flow';
 import type {
   ClientHistoryTask,
   ClientPlanHistoryResult,
@@ -58,6 +62,11 @@ export interface TodayReviewResult {
     nextSuggestion: string;
     memoryCandidate: string | null;
   };
+}
+
+export interface GrowthSummaryResult {
+  growth: number;
+  recentAwards: Array<{ date: string; growthAwarded: number }>;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -193,7 +202,7 @@ function isTodayPlan(value: unknown): value is TodayPlan {
     !isText(value.summary) ||
     !Array.isArray(value.tasks) ||
     value.tasks.length < 1 ||
-    value.tasks.length > 5
+    value.tasks.length > 10
   ) {
     return false;
   }
@@ -229,6 +238,56 @@ function isTodayPlan(value: unknown): value is TodayPlan {
     totalMinutes += task.estimatedMinutes as number;
   }
   return totalMinutes <= (value.availableMinutes as number);
+}
+
+function isTodayDashboardPlan(value: unknown): value is TodayDashboardPlan {
+  if (!isTodayPlan(value)) {
+    return false;
+  }
+
+  const dashboard = value as TodayPlan & Record<string, unknown>;
+  if (!Array.isArray(dashboard.groups) ||
+      dashboard.groups.length < 1 || dashboard.groups.length > 3) {
+    return false;
+  }
+
+  const flatTasks = new Map(value.tasks.map((task) => [task.id, task]));
+  if (flatTasks.size !== value.tasks.length) {
+    return false;
+  }
+
+  const groupIds = new Set<string>();
+  const groupedTaskIds = new Set<string>();
+  for (const group of dashboard.groups) {
+    if (!isRecord(group) || !isText(group.goalId) || groupIds.has(group.goalId) ||
+        !isText(group.goalTitle) || !Array.isArray(group.tasks) ||
+        group.tasks.length < 1 || group.tasks.length > 5) {
+      return false;
+    }
+    groupIds.add(group.goalId);
+    for (const task of group.tasks) {
+      if (!isRecord(task) || !isText(task.id) || groupedTaskIds.has(task.id) ||
+          task.goalId !== group.goalId) {
+        return false;
+      }
+      const flatTask = flatTasks.get(task.id);
+      if (!flatTask ||
+          flatTask.title !== task.title ||
+          flatTask.action !== task.action ||
+          flatTask.estimatedMinutes !== task.estimatedMinutes ||
+          flatTask.doneCriteria !== task.doneCriteria ||
+          flatTask.goalId !== task.goalId ||
+          flatTask.reason !== task.reason ||
+          flatTask.difficulty !== task.difficulty ||
+          flatTask.priority !== task.priority ||
+          flatTask.status !== task.status ||
+          flatTask.difficultyFeedback !== task.difficultyFeedback) {
+        return false;
+      }
+      groupedTaskIds.add(task.id);
+    }
+  }
+  return groupedTaskIds.size === flatTasks.size;
 }
 
 function isHistoryTask(value: unknown): value is ClientHistoryTask {
@@ -293,11 +352,13 @@ function isPlanHistoryResult(
       !isText(value.selectedDay.summary) ||
       !Array.isArray(value.selectedDay.groups) ||
       value.selectedDay.groups.length < 1 ||
+      value.selectedDay.groups.length > 3 ||
       value.selectedDay.review !== null && !isHistoryReview(value.selectedDay.review)) {
     return false;
   }
 
   const groupIds = new Set<string>();
+  const taskIds = new Set<string>();
   let taskCount = 0;
   let totalMinutes = 0;
   for (const group of value.selectedDay.groups) {
@@ -312,17 +373,19 @@ function isPlanHistoryResult(
     }
     groupIds.add(group.goalId);
     taskCount += group.tasks.length;
-    if (taskCount > 5) {
+    if (taskCount > 10) {
       return false;
     }
     for (const task of group.tasks) {
-      if (!isHistoryTask(task) || task.goalId !== group.goalId) {
+      if (!isHistoryTask(task) || task.goalId !== group.goalId || taskIds.has(task.id)) {
         return false;
       }
+      taskIds.add(task.id);
       totalMinutes += task.estimatedMinutes;
     }
   }
   return totalMinutes <= (value.selectedDay.availableMinutes as number) &&
+    taskCount <= 10 &&
     planDates.has(value.selectedDay.date);
 }
 
@@ -331,6 +394,7 @@ function isPublicErrorCode(value: unknown): value is PublicErrorCode {
     value === 'UNAUTHENTICATED' ||
     value === 'INVALID_CONTEXT' ||
     value === 'MISCONFIGURED' ||
+    value === 'LIMIT_REACHED' ||
     value === 'QUOTA_EXCEEDED' ||
     value === 'INTERNAL_ERROR'
   );
@@ -343,6 +407,33 @@ function isTodayReviewResult(value: unknown): value is TodayReviewResult {
   const review = value.review;
   return isText(review.completionSummary) && isText(review.encouragement) && isText(review.nextSuggestion) &&
     (review.memoryCandidate === null || isText(review.memoryCandidate));
+}
+
+function hasExactKeys(value: Record<string, unknown>, keys: string[]): boolean {
+  const actual = Object.keys(value).sort();
+  return actual.length === keys.length &&
+    actual.every((key, index) => key === [...keys].sort()[index]);
+}
+
+function isGrowthSummaryResult(value: unknown): value is GrowthSummaryResult {
+  if (!isRecord(value) || !hasExactKeys(value, ['growth', 'recentAwards']) ||
+      !Number.isInteger(value.growth) || (value.growth as number) < 0 ||
+      !Array.isArray(value.recentAwards) || value.recentAwards.length > 3) {
+    return false;
+  }
+  let previousDate = '';
+  for (const award of value.recentAwards) {
+    if (!isRecord(award) || !hasExactKeys(award, ['date', 'growthAwarded']) ||
+        typeof award.date !== 'string' ||
+        !isHistoryDate(award.date, award.date.slice(0, 7)) ||
+        !Number.isInteger(award.growthAwarded) ||
+        (award.growthAwarded as number) < 0 ||
+        (previousDate !== '' && award.date > previousDate)) {
+      return false;
+    }
+    previousDate = award.date;
+  }
+  return true;
 }
 
 const platformCaller: CloudFunctionCaller = async (options) => {
@@ -442,15 +533,25 @@ export async function confirmDailyPlan(
 
 export async function getTodayPlan(
   caller: CloudFunctionCaller = platformCaller,
-): Promise<TodayPlan | null> {
+): Promise<TodayDashboardPlan | null> {
   const response = await callCloudFunction('plan-get-today', {}, caller);
   if (response.plan === null) {
     return null;
   }
-  if (!isTodayPlan(response.plan)) {
+  if (!isTodayDashboardPlan(response.plan)) {
     throw new CloudApiError('INTERNAL_ERROR');
   }
   return response.plan;
+}
+
+export async function getGrowthSummary(
+  caller: CloudFunctionCaller = platformCaller,
+): Promise<GrowthSummaryResult> {
+  const response = await callCloudFunction('growth-summary', {}, caller);
+  if (!isGrowthSummaryResult(response.result)) {
+    throw new CloudApiError('INTERNAL_ERROR');
+  }
+  return response.result;
 }
 
 export async function getPlanHistory(

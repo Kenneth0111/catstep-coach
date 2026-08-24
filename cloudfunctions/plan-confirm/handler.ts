@@ -1,5 +1,6 @@
 import {
   PlanConfirmationError,
+  PlanConfirmationInternalError,
   confirmDailyPlan,
   type DailyPlanRepository,
 } from './service';
@@ -33,6 +34,9 @@ export async function handlePlanConfirm(
   } catch (error) {
     if (error instanceof PlanConfirmationError) {
       return { ok: false as const, code: error.code };
+    }
+    if (error instanceof PlanConfirmationInternalError) {
+      console.error('plan_confirm_failed', { stage: error.stage });
     }
     return { ok: false as const, code: 'INTERNAL_ERROR' as const };
   }

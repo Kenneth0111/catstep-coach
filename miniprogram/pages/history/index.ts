@@ -15,6 +15,7 @@ const errorMessages = {
   UNAUTHENTICATED: '请先使用已关联云环境的小程序账号。',
   INVALID_CONTEXT: '历史日期信息不完整，请返回后再试。',
   MISCONFIGURED: '历史服务还没有配置好，请稍后再试。',
+  LIMIT_REACHED: '这一天的目标或任务数量超出可显示范围。',
   QUOTA_EXCEEDED: '历史记录暂时无法加载，请稍后再试。',
   INTERNAL_ERROR: '历史记录没有加载成功，再试一次就好。',
 } as const;
@@ -66,6 +67,13 @@ Page({
     monthTitle: monthTitle(initialFlow.month),
     canGoNext: false,
     errorMessage: '',
+  },
+
+  onShow() {
+    const tabBar = this.getTabBar();
+    if (tabBar) {
+      tabBar.setData({ activePath: '/pages/history/index' });
+    }
   },
 
   onLoad() {

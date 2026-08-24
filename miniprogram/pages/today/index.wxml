@@ -1,12 +1,12 @@
 <view class="today-page">
   <view class="intro">
-    <view class="intro-links">
-      <navigator class="history-link" url="/pages/history/index">历史</navigator>
-      <navigator class="profile-link" url="/pages/profile/index">我的</navigator>
-    </view>
     <text class="eyebrow">今日计划</text>
     <text class="title">慢一点，也是在向前走</text>
-    <text class="summary" wx:if="{{flow.stage === 'ready'}}">还剩 {{flow.summary.remainingCount}} 项，约 {{flow.summary.remainingMinutes}} 分钟</text>
+    <view class="summary" wx:if="{{flow.stage === 'ready'}}">
+      <text>已完成 {{flow.summary.completedCount}}/{{flow.summary.totalCount}} 项</text>
+      <text>还剩 {{flow.summary.remainingCount}} 项，约 {{flow.summary.remainingMinutes}} 分钟</text>
+      <text>今日目标 {{flow.goalViews.length}}/3</text>
+    </view>
   </view>
 
   <view class="state-card" wx:if="{{flow.stage === 'loading'}}">
@@ -17,7 +17,7 @@
   <view class="state-card" wx:if="{{flow.stage === 'empty'}}">
     <text class="state-title">今天还没有确认计划</text>
     <text>先把目标缩成一小步，再回来开始。</text>
-    <navigator class="state-action" url="/pages/goal/index" open-type="redirect">去制定计划</navigator>
+    <navigator class="state-action" url="/pages/goal/index" open-type="navigate">拆解第一个目标</navigator>
   </view>
 
   <view class="state-card error-state" wx:if="{{flow.stage === 'error'}}">
@@ -36,42 +36,68 @@
       <text class="reminder-message" wx:if="{{reminderMessage}}">{{reminderMessage}}</text>
     </view>
 
-    <view class="state-card error-state" wx:if="{{flow.taskUpdateErrorCode}}">
-      <text>{{taskUpdateErrorMessage}}</text>
-      <button class="state-action" bindtap="onRetryTaskUpdate">重试刚才的操作</button>
+    <view class="goal-list">
+      <view class="goal-card {{flow.expandedGoalId === item.goalId ? 'is-expanded' : ''}}" wx:for="{{flow.goalViews}}" wx:for-item="item" wx:key="goalId">
+        <view class="goal-card__toggle" data-goal-id="{{item.goalId}}" bindtap="onToggleGoal" aria-label="切换目标 {{item.goalTitle}}">
+          <view class="goal-card__marker"><view class="paw-toe"></view><view class="paw-pad"></view></view>
+          <view class="goal-card__main">
+            <view class="goal-card__heading">
+              <text class="goal-card__title">{{item.goalTitle}}</text>
+              <text class="goal-card__status">{{item.status === 'completed' ? '已完成' : (item.status === 'in_progress' ? '进行中' : '未开始')}}</text>
+            </view>
+            <view class="goal-card__progress">
+              <view class="goal-card__progress-fill" style="width: {{item.progressPercent}}%"></view>
+            </view>
+            <text class="goal-card__count">已完成 {{item.completedCount}}/{{item.totalCount}} 项</text>
+          </view>
+        </view>
+
+        <view class="goal-card__error error-state" wx:if="{{flow.taskUpdateErrorsByGoalId[item.goalId]}}">
+          <text>{{taskUpdateErrorMessageByGoalId[item.goalId]}}</text>
+          <button class="state-action" data-goal-id="{{item.goalId}}" bindtap="onRetryTaskUpdate">重试刚才的操作</button>
+        </view>
+
+        <view class="goal-card__content" wx:if="{{flow.expandedGoalId === item.goalId}}">
+          <view class="section" wx:if="{{item.currentTask}}">
+            <text class="section-label">现在开始</text>
+            <task-card task="{{item.currentTask}}" primary="{{true}}" can-start="{{true}}" updating="{{flow.taskUpdatesByGoalId[item.goalId] && flow.taskUpdatesByGoalId[item.goalId].taskId === item.currentTask.id && !flow.taskUpdateErrorsByGoalId[item.goalId]}}" bind:starttask="onStartTask" bind:completetask="onCompleteTask" bind:resizetask="onResizeTask" bind:movetasktoend="onMoveTaskToEnd" />
+          </view>
+
+          <view class="section" wx:if="{{item.pendingTasks.length}}">
+            <text class="section-label">接下来</text>
+            <view class="task-list">
+              <task-card wx:for="{{item.pendingTasks}}" wx:for-item="task" wx:key="id" task="{{task}}" primary="{{true}}" can-start="{{!item.currentTask}}" updating="{{flow.taskUpdatesByGoalId[item.goalId] && flow.taskUpdatesByGoalId[item.goalId].taskId === task.id && !flow.taskUpdateErrorsByGoalId[item.goalId]}}" bind:starttask="onStartTask" bind:completetask="onCompleteTask" bind:resizetask="onResizeTask" bind:movetasktoend="onMoveTaskToEnd" />
+            </view>
+          </view>
+
+          <view class="section" wx:if="{{item.completedTasks.length}}">
+            <text class="section-label">已完成</text>
+            <view class="task-list">
+              <task-card wx:for="{{item.completedTasks}}" wx:key="id" task="{{item}}" />
+            </view>
+          </view>
+        </view>
+      </view>
     </view>
 
-    <view class="section" wx:if="{{flow.currentTask}}">
-      <text class="section-label">现在开始</text>
-      <task-card task="{{flow.currentTask}}" primary="{{true}}" updating="{{flow.taskUpdate !== null}}" bind:starttask="onStartTask" bind:completetask="onCompleteTask" bind:resizetask="onResizeTask" bind:movetasktoend="onMoveTaskToEnd" />
-    </view>
+    <button wx:if="{{flow.goalViews.length < 3 && flow.plan.tasks.length < 10}}" class="state-action add-goal-action" bindtap="onAddGoal">＋拆解新目标</button>
+    <view wx:elif="{{flow.goalViews.length >= 3}}" class="capacity-note">今天已经有 3 个目标啦，先陪它们走完吧。</view>
+    <view wx:else class="capacity-note">今天已经安排了 10 个小步，先完成一些再继续吧。</view>
 
-    <view class="empty-state" wx:else>
+    <view class="empty-state" wx:if="{{flow.summary.remainingCount === 0}}">
       <text class="empty-title">今天的脚步都完成了</text>
       <text>先休息一下，明天再继续。</text>
       <button wx:if="{{flow.reviewStage === 'idle'}}" class="state-action" bindtap="onGenerateReview">写下今天的复盘</button>
       <view wx:if="{{flow.reviewStage === 'loading'}}" class="review-card"><text>猫猫正在整理今天的脚印…</text></view>
       <view wx:if="{{flow.reviewStage === 'ready'}}" class="review-card">
-        <text>{{flow.review.completionSummary}}</text><text>{{flow.review.encouragement}}</text><text>{{flow.review.nextSuggestion}}</text>
+        <text>{{flow.review.completionSummary}}</text>
+        <text>{{flow.review.encouragement}}</text>
+        <text>{{flow.review.nextSuggestion}}</text>
         <checkbox-group bindchange="onMemoryChoice" wx:if="{{flow.review.memoryCandidate}}"><label><checkbox value="confirm" checked="{{confirmMemory}}" />确认记住：{{flow.review.memoryCandidate}}</label></checkbox-group>
         <button class="state-action" bindtap="onConfirmReview">确认这份复盘</button>
       </view>
       <view wx:if="{{flow.reviewStage === 'confirmed'}}" class="review-card"><text>复盘已收好，获得 {{flow.growthAwarded}} 点成长值。</text></view>
       <view wx:if="{{flow.reviewStage === 'error'}}" class="review-card error-state"><text>{{reviewErrorMessage}}</text><button class="state-action" bindtap="onRetryReview">再试一次</button></view>
-    </view>
-
-    <view class="section" wx:if="{{flow.nextTasks.length}}">
-      <text class="section-label">接下来</text>
-      <view class="task-list">
-        <task-card wx:for="{{flow.nextTasks}}" wx:key="id" task="{{item}}" />
-      </view>
-    </view>
-
-    <view class="section" wx:if="{{flow.completedTasks.length}}">
-      <text class="section-label">已完成</text>
-      <view class="task-list">
-        <task-card wx:for="{{flow.completedTasks}}" wx:key="id" task="{{item}}" />
-      </view>
     </view>
   </block>
 </view>

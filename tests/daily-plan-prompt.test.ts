@@ -15,7 +15,7 @@ describe('daily plan prompt', () => {
     const messages = buildDailyPlanMessages(request);
 
     expect(messages).toHaveLength(2);
-    expect(messages[0]?.content).toContain('1–5');
+    expect(messages[0]?.content).toContain('1–input.maxTasks');
     expect(messages[0]?.content).toContain('estimatedMinutes');
     expect(messages[0]?.content).toContain('goalId');
     expect(messages[0]?.content).toContain('用户可见');
@@ -35,5 +35,14 @@ describe('daily plan prompt', () => {
 
     expect(messages[1]?.content).toContain('TASK_COUNT');
     expect(messages[1]?.content).toContain('缺少任务');
+  });
+
+  it('uses the trusted max task count in its instructions', () => {
+    const messages = buildDailyPlanMessages({
+      ...request,
+      input: { ...request.input, maxTasks: 2 },
+    });
+
+    expect(messages[0]?.content).toContain('1–input.maxTasks');
   });
 });

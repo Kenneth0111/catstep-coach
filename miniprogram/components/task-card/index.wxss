@@ -61,6 +61,52 @@
   transform: translateY(2rpx);
 }
 
+.task-card__choices {
+  display: flex;
+  gap: 14rpx;
+  margin-top: 18rpx;
+}
+
+.task-card__choice,
+.task-card__secondary {
+  display: flex;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 76rpx;
+  margin: 0;
+  padding: 0 16rpx;
+  border: 2rpx solid #9a927f;
+  border-radius: 12rpx;
+  background: transparent;
+  color: #625c52;
+  font-size: 26rpx;
+  line-height: 1.4;
+}
+
+.task-card__choice::after,
+.task-card__secondary::after {
+  border: 0;
+}
+
+.task-card__secondary {
+  width: 100%;
+  margin-top: 16rpx;
+}
+
+.task-card__blocked {
+  display: block;
+  margin-top: 14rpx;
+  color: #8a641c;
+  font-size: 26rpx;
+  line-height: 1.5;
+}
+
+.task-card__feedback {
+  margin-top: 24rpx;
+}
+
 .task-card__difficulty--selected {
   border-color: #356f63;
   background: #dcece4;

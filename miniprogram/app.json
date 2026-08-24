@@ -1,11 +1,29 @@
 {
-  "pages": ["pages/goal/index", "pages/today/index", "pages/profile/index", "pages/history/index"],
+  "pages": [
+    "pages/today/index",
+    "pages/goal/index",
+    "pages/history/index",
+    "pages/profile/index",
+    "pages/settings/index"
+  ],
   "window": {
     "navigationBarBackgroundColor": "#F7F0DF",
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "猫步计划",
     "backgroundColor": "#F7F0DF",
     "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "custom": true,
+    "color": "#71695D",
+    "selectedColor": "#356F63",
+    "backgroundColor": "#FFFAF0",
+    "borderStyle": "black",
+    "list": [
+      { "pagePath": "pages/today/index", "text": "今日" },
+      { "pagePath": "pages/history/index", "text": "历史" },
+      { "pagePath": "pages/profile/index", "text": "我的" }
+    ]
   },
   "sitemapLocation": "sitemap.json"
 }

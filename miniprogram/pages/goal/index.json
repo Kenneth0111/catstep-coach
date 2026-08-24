@@ -1,3 +1,6 @@
 {
-  "navigationBarTitleText": "迈出第一步"
+  "navigationBarTitleText": "迈出第一步",
+  "usingComponents": {
+    "bottom-navigation": "/components/bottom-navigation/index"
+  }
 }

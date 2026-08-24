@@ -11,6 +11,8 @@ import {
   receiveTodayTaskUpdate,
   retryTodayTaskUpdate,
   setTodayTaskUpdateError,
+  toggleTodayGoal,
+  type TodayDashboardPlan,
   type TodayPlan,
 } from '../miniprogram/shared/today-flow';
 
@@ -20,6 +22,26 @@ function createPlan(status: 'pending' | 'in_progress' | 'completed' = 'pending')
     tasks: [{ id: 'task-1', title: '完成练习', action: '完成五道练习', estimatedMinutes: 30,
       doneCriteria: '五道练习通过', goalId: 'goal-1', reason: '巩固基础', difficulty: 'medium',
       priority: 1, status }],
+  };
+}
+
+function createDashboardPlan(): TodayDashboardPlan {
+  const tasks = Array.from({ length: 10 }, (_unused, index) => ({
+    ...createPlan().tasks[0],
+    id: `task-${index + 1}`,
+    goalId: index < 4 ? 'goal-1' : index < 7 ? 'goal-2' : 'goal-3',
+    priority: index + 1,
+    status: 'pending' as const,
+  }));
+  return {
+    ...createPlan(),
+    availableMinutes: 300,
+    tasks,
+    groups: [
+      { goalId: 'goal-1', goalTitle: '目标一', tasks: tasks.slice(0, 4) },
+      { goalId: 'goal-2', goalTitle: '目标二', tasks: tasks.slice(4, 7) },
+      { goalId: 'goal-3', goalTitle: '目标三', tasks: tasks.slice(7) },
+    ],
   };
 }
 
@@ -92,6 +114,33 @@ describe('plan-update-task client boundary', () => {
     expect(receiveTodayTaskUpdate(retry, 'other-request', createPlan('completed'))).toBe(retry);
   });
 
+  it('retains loaded dashboard groups when a task update returns a flat ten-task plan', () => {
+    const current = createDashboardPlan();
+    const ready = toggleTodayGoal(
+      receiveTodayPlan(createTodayFlowState(), current),
+      'goal-2',
+    );
+    const updating = beginTodayTaskUpdate(ready, {
+      requestId: 'start-1', planId: 'plan-1', taskId: 'task-5', action: 'start',
+    });
+    const { groups: _groups, ...flatCurrent } = current;
+    const flatUpdated: TodayPlan = {
+      ...flatCurrent,
+      tasks: current.tasks.map((task) =>
+        task.id === 'task-5' ? { ...task, status: 'in_progress' as const } : task,
+      ),
+    };
+
+    expect(receiveTodayTaskUpdate(updating, 'start-1', flatUpdated)).toMatchObject({
+      expandedGoalId: 'goal-2',
+      goalViews: [
+        { goalId: 'goal-1', goalTitle: '目标一', totalCount: 4 },
+        { goalId: 'goal-2', goalTitle: '目标二', currentTask: { id: 'task-5' }, totalCount: 3 },
+        { goalId: 'goal-3', goalTitle: '目标三', totalCount: 3 },
+      ],
+    });
+  });
+
   it('keeps a failed request pending until that request is retried', () => {
     const ready = receiveTodayPlan(createTodayFlowState(), createPlan());
     const updating = beginTodayTaskUpdate(ready, {
@@ -113,7 +162,8 @@ describe('plan-update-task client boundary', () => {
     expect(page).toContain('bind:starttask="onStartTask"');
     expect(page).toContain('bind:completetask="onCompleteTask"');
     expect(page).toContain('bindtap="onRetryTaskUpdate"');
-    expect(page).toContain('updating="{{flow.taskUpdate !== null}}"');
+    expect(page).toContain('flow.taskUpdatesByGoalId[item.goalId]');
+    expect(page).toContain('data-goal-id="{{item.goalId}}"');
     expect(card).toContain('disabled="{{updating}}"');
     expect(card).toContain('disabled="{{updating || !selectedDifficulty}}"');
     expect(card).toContain('data-difficulty="just_right"');

@@ -28,6 +28,7 @@ const errorMessages: Record<PublicErrorCode, string> = {
   UNAUTHENTICATED: '请先使用已关联云环境的小程序账号。',
   INVALID_CONTEXT: '这一步的信息不完整，请检查后再试。',
   MISCONFIGURED: 'AI 服务还没有配置好，请稍后再试。',
+  LIMIT_REACHED: '今天的目标或任务名额已经满了，先回到今日看板继续推进吧。',
   QUOTA_EXCEEDED: '今天的 AI 次数已用完，明天再继续吧。',
   INTERNAL_ERROR: '刚才没有走稳，再试一次就好。',
 };
@@ -59,6 +60,26 @@ Page({
 
   onAnswerInput(event: WechatMiniprogram.Input) {
     this.setData({ answerText: event.detail.value });
+  },
+
+  async onNavigateTab(event: WechatMiniprogram.CustomEvent<{ url: string }>) {
+    const url = event.detail.url;
+    const hasUnsavedDraft =
+      this.data.flow.stage !== 'draft' ||
+      Boolean(this.data.draftTitle.trim()) ||
+      Boolean(this.data.answerText.trim());
+    if (hasUnsavedDraft) {
+      const confirmation = await wx.showModal({
+        title: '离开目标拆解？',
+        content: '尚未确认的目标和计划不会保存，离开后需要重新填写。',
+        confirmText: '离开',
+        cancelText: '继续填写',
+      });
+      if (!confirmation.confirm) {
+        return;
+      }
+    }
+    await wx.switchTab({ url });
   },
 
   async onStartClarification() {
@@ -178,7 +199,11 @@ Page({
         availableMinutes: this.data.flow.availableMinutes,
         plan: this.data.flow.plan,
       });
-      await wx.redirectTo({ url: '/pages/today/index' });
+      if (getCurrentPages().length > 1) {
+        await wx.navigateBack({ delta: 1 });
+      } else {
+        await wx.switchTab({ url: '/pages/today/index' });
+      }
     } catch (error) {
       const code =
         error instanceof CloudApiError
@@ -188,7 +213,6 @@ Page({
         savingPlan: false,
         errorMessage: errorMessages[code],
       });
-      wx.showToast({ title: errorMessages[code], icon: 'none' });
     }
   },
 

@@ -1,6 +1,5 @@
 <view class="history-page">
   <view class="history-header">
-    <navigator class="today-link" url="/pages/today/index" open-type="redirect">返回 Today</navigator>
     <text class="eyebrow">历史脚印</text>
     <text class="history-title">{{monthTitle}}</text>
     <text class="history-copy">选一天，看看当时走过的目标、任务与复盘。</text>

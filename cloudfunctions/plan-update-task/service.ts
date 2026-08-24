@@ -109,6 +109,16 @@ function updateTask(
 
   let updatedTask: StoredPlanTask;
   if (input.action === 'start' && task.status === 'pending') {
+    if (
+      plan.tasks.some(
+        (candidate) =>
+          candidate.id !== task.id &&
+          candidate.goalId === task.goalId &&
+          candidate.status === 'in_progress',
+      )
+    ) {
+      throw new PlanTaskUpdateError('INVALID_CONTEXT');
+    }
     updatedTask = {
       ...task,
       status: 'in_progress',

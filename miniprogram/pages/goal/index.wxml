@@ -96,6 +96,11 @@
     </view>
     <view class="confirm-plan-card">
       <text class="muted">确认后会保存为今天的正式计划，你仍然拥有最终决定权。</text>
+      <view class="plan-confirm-error error-state" wx:if="{{errorMessage}}">
+        <text class="error-mark">确认计划没有保存成功</text>
+        <text>{{errorMessage}}</text>
+        <text class="muted">计划内容仍在这里；检查后可直接再次确认。</text>
+      </view>
       <button class="primary-button" disabled="{{savingPlan}}" bindtap="onConfirmDailyPlan">{{savingPlan ? '正在保存今日计划…' : '确认今日计划'}}</button>
     </view>
   </view>
@@ -108,3 +113,6 @@
 
   <text class="ai-note">目标和计划由 AI 辅助生成，最终决定始终属于你。</text>
 </view>
+
+<view class="goal-nav-status" aria-live="polite">正在制定：目标拆解</view>
+<bottom-navigation fixed="{{true}}" intercept="{{true}}" bind:navigate="onNavigateTab" />

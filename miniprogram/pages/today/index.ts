@@ -26,6 +26,7 @@ import {
   retryTodayFlow,
   setTodayFlowError,
   setTodayTaskUpdateError,
+  toggleTodayGoal,
   type TodayTaskUpdate,
   type TodayFlowState,
 } from '../../shared/today-flow';
@@ -34,6 +35,7 @@ const errorMessages = {
   UNAUTHENTICATED: '请先使用已关联云环境的小程序账号。',
   INVALID_CONTEXT: '今日计划信息不完整，请重新确认。',
   MISCONFIGURED: '服务还没有配置好，请稍后再试。',
+  LIMIT_REACHED: '今天的目标或任务已经安排满了。',
   QUOTA_EXCEEDED: '今天的 AI 次数已用完，明天再继续吧。',
   INTERNAL_ERROR: '今天的计划没有加载成功，再试一次就好。',
 } as const;
@@ -42,6 +44,7 @@ const reviewErrorMessages = {
   UNAUTHENTICATED: '请先使用已关联云环境的小程序账号。',
   INVALID_CONTEXT: '无法为这份计划生成复盘，请确认它是今天已确认的计划。',
   MISCONFIGURED: '复盘服务还没有配置好，请稍后再试。',
+  LIMIT_REACHED: '今天的目标或任务已经安排满了。',
   QUOTA_EXCEEDED: '今天的 AI 次数已用完，明天再继续吧。',
   INTERNAL_ERROR: '复盘暂时无法生成，再试一次就好。',
 } as const;
@@ -50,6 +53,7 @@ const reviewConfirmationErrorMessages = {
   UNAUTHENTICATED: '请先使用已关联云环境的小程序账号。',
   INVALID_CONTEXT: '这份复盘和今天的计划不匹配，请重新生成后再确认。',
   MISCONFIGURED: '复盘保存服务还没有配置好，请稍后再试。',
+  LIMIT_REACHED: '今天的目标或任务已经安排满了。',
   QUOTA_EXCEEDED: '今天的 AI 次数已用完，明天再继续吧。',
   INTERNAL_ERROR: '复盘确认没有保存成功，再试一次就好。',
 } as const;
@@ -59,20 +63,50 @@ Page({
     flow: createTodayFlowState(),
     errorMessage: '',
     taskUpdateErrorMessage: '',
+    taskUpdateErrorMessageByGoalId: {} as Record<string, string>,
     reviewErrorMessage: '',
     reminderStage: 'idle' as 'idle' | 'requesting' | 'scheduled' | 'error',
     reminderMessage: '',
     confirmMemory: false,
   },
+  todayLoadRequestId: '',
+  deferredTodayRefreshRequested: false,
 
-  onLoad() {
-    void this.loadTodayPlan(this.data.flow);
+  onShow() {
+    const tabBar = this.getTabBar();
+    if (tabBar) {
+      tabBar.setData({ activePath: '/pages/today/index' });
+    }
+    if (this.hasPendingTaskUpdates(this.data.flow)) {
+      this.deferredTodayRefreshRequested = true;
+      return;
+    }
+    this.startTodayLoad(createTodayFlowState(), true);
+  },
+
+  hasPendingTaskUpdates(flow: TodayFlowState) {
+    return Object.keys(flow.taskUpdatesByGoalId).some(
+      (goalId) => !flow.taskUpdateErrorsByGoalId[goalId],
+    );
+  },
+
+  startTodayLoad(flow: TodayFlowState, clearTaskMessages: boolean) {
+    const requestId = this.createRequestId();
+    this.todayLoadRequestId = requestId;
+    this.setData({
+      flow,
+      errorMessage: '',
+      taskUpdateErrorMessage: '',
+      taskUpdateErrorMessageByGoalId: clearTaskMessages
+        ? {}
+        : this.data.taskUpdateErrorMessageByGoalId,
+    });
+    void this.loadTodayPlan(flow, requestId);
   },
 
   async onRetry() {
     const flow = retryTodayFlow(this.data.flow);
-    this.setData({ flow, errorMessage: '' });
-    await this.loadTodayPlan(flow);
+    await this.startTodayLoad(flow, true);
   },
 
   async onSubscribeReminders() {
@@ -132,6 +166,25 @@ Page({
     await this.resizeTask(event.detail.taskId, 'move_to_end');
   },
 
+  onToggleGoal(event: WechatMiniprogram.TouchEvent) {
+    this.setData({
+      flow: toggleTodayGoal(
+        this.data.flow,
+        String(event.currentTarget.dataset.goalId),
+      ),
+    });
+  },
+
+  onAddGoal() {
+    if (
+      this.data.flow.goalViews.length >= 3 ||
+      (this.data.flow.plan?.tasks.length ?? 0) >= 10
+    ) {
+      return;
+    }
+    void wx.navigateTo({ url: '/pages/goal/index' });
+  },
+
   async onGenerateReview() {
     const flow = beginTodayReview(this.data.flow);
     this.setData({ flow, reviewErrorMessage: '' });
@@ -177,10 +230,27 @@ Page({
     }
   },
 
-  async onRetryTaskUpdate() {
-    const flow = retryTodayTaskUpdate(this.data.flow);
-    this.setData({ flow, taskUpdateErrorMessage: '' });
-    await this.sendTaskUpdate(flow);
+  async onRetryTaskUpdate(event?: WechatMiniprogram.TouchEvent) {
+    const goalId = event?.currentTarget?.dataset?.goalId
+      ? String(event.currentTarget.dataset.goalId)
+      : undefined;
+    const flow = retryTodayTaskUpdate(this.data.flow, goalId);
+    const taskUpdate = goalId
+      ? flow.taskUpdatesByGoalId[goalId]
+      : flow.taskUpdate;
+    this.setData({
+      flow,
+      taskUpdateErrorMessage: '',
+      taskUpdateErrorMessageByGoalId: this.withTaskUpdateMessage(goalId, ''),
+    });
+    if (!taskUpdate) {
+      return;
+    }
+    if (taskUpdate.action === 'resize' || taskUpdate.action === 'move_to_end') {
+      await this.sendResizeTask(flow, taskUpdate.requestId);
+    } else {
+      await this.sendTaskUpdate(flow, taskUpdate.requestId);
+    }
   },
 
   createRequestId() {
@@ -188,29 +258,72 @@ Page({
   },
 
   async submitTaskUpdate(taskUpdate: TodayTaskUpdate) {
-    if (this.data.flow.taskUpdate !== null) {
+    let flow: TodayFlowState;
+    try {
+      flow = beginTodayTaskUpdate(this.data.flow, taskUpdate);
+    } catch {
       return;
     }
-    const flow = beginTodayTaskUpdate(this.data.flow, taskUpdate);
-    this.setData({ flow, taskUpdateErrorMessage: '' });
-    await this.sendTaskUpdate(flow);
+    const started = this.findTaskUpdate(flow, taskUpdate.requestId);
+    this.setData({
+      flow,
+      taskUpdateErrorMessage: '',
+      taskUpdateErrorMessageByGoalId: this.withTaskUpdateMessage(
+        started?.goalId,
+        '',
+      ),
+    });
+    await this.sendTaskUpdate(flow, taskUpdate.requestId);
   },
 
-  async sendTaskUpdate(flow: TodayFlowState) {
-    if (!flow.taskUpdate) {
+  findTaskUpdate(flow: TodayFlowState, requestId: string) {
+    return (
+      Object.values(flow.taskUpdatesByGoalId).find(
+        (taskUpdate) => taskUpdate.requestId === requestId,
+      ) ?? null
+    );
+  },
+
+  withTaskUpdateMessage(goalId: string | undefined, message: string) {
+    if (!goalId) {
+      return this.data.taskUpdateErrorMessageByGoalId;
+    }
+    return {
+      ...this.data.taskUpdateErrorMessageByGoalId,
+      [goalId]: message,
+    };
+  },
+
+  async sendTaskUpdate(flow: TodayFlowState, requestId: string) {
+    const taskUpdate = this.findTaskUpdate(flow, requestId);
+    if (
+      !taskUpdate ||
+      (taskUpdate.action !== 'start' && taskUpdate.action !== 'complete')
+    ) {
       return;
     }
-    const requestId = flow.taskUpdate.requestId;
     try {
-      const plan = await updatePlanTask(flow.taskUpdate);
+      const plan = await updatePlanTask({
+        requestId: taskUpdate.requestId,
+        planId: taskUpdate.planId,
+        taskId: taskUpdate.taskId,
+        action: taskUpdate.action,
+        difficulty: taskUpdate.difficulty,
+      });
       const currentFlow = this.data.flow;
       if (!isCurrentTodayTaskUpdate(currentFlow, requestId)) {
         return;
       }
+      const nextFlow = receiveTodayTaskUpdate(currentFlow, requestId, plan);
       this.setData({
-        flow: receiveTodayTaskUpdate(currentFlow, requestId, plan),
+        flow: nextFlow,
         taskUpdateErrorMessage: '',
+        taskUpdateErrorMessageByGoalId: this.withTaskUpdateMessage(
+          taskUpdate.goalId,
+          '',
+        ),
       });
+      this.refreshAfterDeferredTaskUpdates(nextFlow);
     } catch (error) {
       const code =
         error instanceof CloudApiError
@@ -220,32 +333,107 @@ Page({
       if (!isCurrentTodayTaskUpdate(currentFlow, requestId)) {
         return;
       }
+      const failedFlow = setTodayTaskUpdateError(currentFlow, code, requestId);
       this.setData({
-        flow: setTodayTaskUpdateError(currentFlow, code, requestId),
+        flow: failedFlow,
         taskUpdateErrorMessage: errorMessages[code],
+        taskUpdateErrorMessageByGoalId: this.withTaskUpdateMessage(
+          taskUpdate.goalId,
+          errorMessages[code],
+        ),
       });
+      this.refreshAfterDeferredTaskUpdates(failedFlow);
     }
   },
 
   async resizeTask(taskId: string, action: 'resize' | 'move_to_end') {
     const planId = this.data.flow.plan?.id;
-    if (!planId || this.data.flow.taskUpdate !== null) {
+    if (!planId) {
+      return;
+    }
+    const requestId = this.createRequestId();
+    let flow: TodayFlowState;
+    try {
+      flow = beginTodayTaskUpdate(this.data.flow, {
+        requestId,
+        planId,
+        taskId,
+        action,
+      });
+    } catch {
+      return;
+    }
+    const taskUpdate = this.findTaskUpdate(flow, requestId);
+    this.setData({
+      flow,
+      taskUpdateErrorMessage: '',
+      taskUpdateErrorMessageByGoalId: this.withTaskUpdateMessage(
+        taskUpdate?.goalId,
+        '',
+      ),
+    });
+    await this.sendResizeTask(flow, requestId);
+  },
+
+  async sendResizeTask(flow: TodayFlowState, requestId: string) {
+    const taskUpdate = this.findTaskUpdate(flow, requestId);
+    if (
+      !taskUpdate ||
+      (taskUpdate.action !== 'resize' && taskUpdate.action !== 'move_to_end')
+    ) {
       return;
     }
     try {
-      const plan = await resizeTodayTask({ requestId: this.createRequestId(), planId, taskId, action });
-      this.setData({ flow: receiveTodayPlan(createTodayFlowState(), plan) });
+      const plan = await resizeTodayTask({
+        requestId: taskUpdate.requestId,
+        planId: taskUpdate.planId,
+        taskId: taskUpdate.taskId,
+        action: taskUpdate.action,
+      });
+      const currentFlow = this.data.flow;
+      if (!isCurrentTodayTaskUpdate(currentFlow, requestId)) {
+        return;
+      }
+      const nextFlow = receiveTodayTaskUpdate(currentFlow, requestId, plan);
+      this.setData({
+        flow: nextFlow,
+        taskUpdateErrorMessage: '',
+        taskUpdateErrorMessageByGoalId: this.withTaskUpdateMessage(
+          taskUpdate.goalId,
+          '',
+        ),
+      });
+      this.refreshAfterDeferredTaskUpdates(nextFlow);
     } catch (error) {
       const code = error instanceof CloudApiError ? error.code : 'INTERNAL_ERROR';
-      this.setData({ taskUpdateErrorMessage: errorMessages[code] });
+      const currentFlow = this.data.flow;
+      if (!isCurrentTodayTaskUpdate(currentFlow, requestId)) {
+        return;
+      }
+      const failedFlow = setTodayTaskUpdateError(currentFlow, code, requestId);
+      this.setData({
+        flow: failedFlow,
+        taskUpdateErrorMessage: errorMessages[code],
+        taskUpdateErrorMessageByGoalId: this.withTaskUpdateMessage(
+          taskUpdate.goalId,
+          errorMessages[code],
+        ),
+      });
+      this.refreshAfterDeferredTaskUpdates(failedFlow);
     }
   },
 
-  async loadTodayPlan(flow: TodayFlowState) {
+  async loadTodayPlan(flow: TodayFlowState, requestId: string) {
     try {
       const plan = await getTodayPlan();
+      if (this.todayLoadRequestId !== requestId) {
+        return;
+      }
       this.setData({ flow: receiveTodayPlan(flow, plan) });
     } catch (error) {
+      if (this.todayLoadRequestId !== requestId) {
+        return;
+      }
       const code =
         error instanceof CloudApiError
           ? error.code
@@ -255,5 +443,16 @@ Page({
         errorMessage: errorMessages[code],
       });
     }
+  },
+
+  refreshAfterDeferredTaskUpdates(flow: TodayFlowState) {
+    if (
+      !this.deferredTodayRefreshRequested ||
+      this.hasPendingTaskUpdates(flow)
+    ) {
+      return;
+    }
+    this.deferredTodayRefreshRequested = false;
+    this.startTodayLoad(createTodayFlowState(), true);
   },
 });

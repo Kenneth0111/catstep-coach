@@ -23,10 +23,15 @@ const requiredFiles = [
   'miniprogram/pages/history/index.json',
   'miniprogram/pages/history/index.wxml',
   'miniprogram/pages/history/index.wxss',
+  'miniprogram/pages/settings/index.ts',
+  'miniprogram/pages/settings/index.json',
+  'miniprogram/pages/settings/index.wxml',
+  'miniprogram/pages/settings/index.wxss',
   'miniprogram/components/task-card/index.ts',
   'miniprogram/components/task-card/index.json',
   'miniprogram/components/task-card/index.wxml',
   'miniprogram/components/task-card/index.wxss',
+  'miniprogram/assets/navigation/paw-active.png',
 ];
 
 describe('native Mini Program structure', () => {
@@ -53,20 +58,47 @@ describe('native Mini Program structure', () => {
     expect(pageConfig.navigationBarTitleText).toBe('猫步计划');
   });
 
-  it('starts with goal onboarding and keeps Today registered', async () => {
+  it('launches into Today and keeps goal onboarding as a returnable subflow', async () => {
     const appConfig = JSON.parse(
       await readFile(resolve(process.cwd(), 'miniprogram/app.json'), 'utf8'),
-    ) as { pages?: unknown };
+    ) as {
+      pages?: unknown;
+      tabBar?: {
+        color?: unknown;
+        selectedColor?: unknown;
+        backgroundColor?: unknown;
+        list?: unknown;
+      };
+    };
+    const todayMarkup = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/today/index.wxml'),
+      'utf8',
+    );
 
     expect(appConfig.pages).toEqual([
-      'pages/goal/index',
       'pages/today/index',
-      'pages/profile/index',
+      'pages/goal/index',
       'pages/history/index',
+      'pages/profile/index',
+      'pages/settings/index',
     ]);
+    expect(appConfig.tabBar).toMatchObject({
+      color: '#71695D',
+      selectedColor: '#356F63',
+      backgroundColor: '#FFFAF0',
+      custom: true,
+    });
+    expect(appConfig.tabBar?.list).toEqual([
+      { pagePath: 'pages/today/index', text: '今日' },
+      { pagePath: 'pages/history/index', text: '历史' },
+      { pagePath: 'pages/profile/index', text: '我的' },
+    ]);
+    expect(todayMarkup).toContain('url="/pages/goal/index"');
+    expect(todayMarkup).toContain('open-type="navigate"');
+    expect(todayMarkup).not.toContain('open-type="redirect"');
   });
 
-  it('keeps a history entry outside every Today page state', async () => {
+  it('uses the native tab bar without duplicate Today header links', async () => {
     const markup = await readFile(
       resolve(process.cwd(), 'miniprogram/pages/today/index.wxml'),
       'utf8',
@@ -76,10 +108,45 @@ describe('native Mini Program structure', () => {
       'utf8',
     );
 
-    const historyEntry = markup.indexOf('url="/pages/history/index"');
-    expect(historyEntry).toBeGreaterThan(-1);
-    expect(historyEntry).toBeLessThan(markup.indexOf("flow.stage === 'loading'"));
-    expect(styles).toMatch(/\.history-link\s*\{[^}]*min-height:\s*88rpx/s);
+    expect(markup).not.toContain('intro-links');
+    expect(markup).not.toContain('url="/pages/history/index"');
+    expect(markup).not.toContain('url="/pages/profile/index"');
+    expect(styles).not.toContain('.history-link');
+    expect(styles).not.toContain('.profile-link');
+  });
+
+  it('uses clear Chinese system fonts and restrained title weights', async () => {
+    const appStyles = await readFile(
+      resolve(process.cwd(), 'miniprogram/app.wxss'),
+      'utf8',
+    );
+    const historyStyles = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/history/index.wxss'),
+      'utf8',
+    );
+    const profileStyles = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/profile/index.wxss'),
+      'utf8',
+    );
+    const historyMarkup = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/history/index.wxml'),
+      'utf8',
+    );
+    const historyConfig = JSON.parse(await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/history/index.json'),
+      'utf8',
+    )) as { navigationBarTitleText?: unknown };
+    const profileConfig = JSON.parse(await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/profile/index.json'),
+      'utf8',
+    )) as { navigationBarTitleText?: unknown };
+
+    expect(appStyles).toContain('"PingFang SC"');
+    expect(appStyles).toContain('"Microsoft YaHei"');
+    expect(`${historyStyles}\n${profileStyles}`).not.toMatch(/font-weight:\s*(?:750|800)/);
+    expect(historyMarkup).not.toContain('返回 Today');
+    expect(historyConfig.navigationBarTitleText).toBe('历史');
+    expect(profileConfig.navigationBarTitleText).toBe('我的');
   });
 
   it('provides complete read-only history calendar interactions', async () => {
@@ -191,7 +258,148 @@ describe('native Mini Program structure', () => {
     expect(markup).toContain('bindtap="onConfirmDailyPlan"');
     expect(source).toContain('confirmDailyPlan');
     expect(source).toContain('restorePlanTaskInput');
-    expect(source).toContain('wx.redirectTo');
+    expect(source).toContain('wx.switchTab');
+    expect(source).not.toContain('wx.redirectTo');
+  });
+
+  it('keeps goal onboarding primary navigation guarded by draft confirmation', async () => {
+    const markup = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/goal/index.wxml'),
+      'utf8',
+    );
+    const styles = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/goal/index.wxss'),
+      'utf8',
+    );
+    const source = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/goal/index.ts'),
+      'utf8',
+    );
+
+    expect(markup).toContain('正在制定：目标拆解');
+    expect(markup).toContain('<bottom-navigation');
+    expect(markup).toContain('intercept="{{true}}"');
+    expect(markup).toContain('bind:navigate="onNavigateTab"');
+    expect(styles).toContain('.goal-nav-status');
+    expect(styles).toContain('env(safe-area-inset-bottom)');
+    expect(source).toContain('async onNavigateTab');
+    expect(source).toContain('const hasUnsavedDraft');
+    expect(source).toContain('wx.showModal');
+    expect(source).toContain('if (!confirmation.confirm)');
+    expect(source).toContain('return;');
+    expect(source).toContain('wx.switchTab');
+
+    expect(source.indexOf('if (!confirmation.confirm)')).toBeLessThan(
+      source.indexOf('await wx.switchTab({ url });'),
+    );
+  });
+
+  it('keeps a plan-confirm failure next to the editable plan instead of only in a toast', async () => {
+    const markup = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/goal/index.wxml'),
+      'utf8',
+    );
+    const source = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/goal/index.ts'),
+      'utf8',
+    );
+
+    expect(markup).toContain('class="plan-confirm-error error-state"');
+    expect(markup).toContain('bindtap="onConfirmDailyPlan"');
+    expect(markup).toContain('确认计划没有保存成功');
+    expect(source).not.toContain('确认计划没有保存成功：');
+    expect(source).not.toMatch(/onConfirmDailyPlan[\s\S]*?wx\.showToast/);
+  });
+
+  it('uses one custom bottom navigation whose active label sits inside a milk-gold paw', async () => {
+    const markup = await readFile(
+      resolve(process.cwd(), 'miniprogram/components/bottom-navigation/index.wxml'),
+      'utf8',
+    );
+    const styles = await readFile(
+      resolve(process.cwd(), 'miniprogram/components/bottom-navigation/index.wxss'),
+      'utf8',
+    );
+    const source = await readFile(
+      resolve(process.cwd(), 'miniprogram/components/bottom-navigation/index.ts'),
+      'utf8',
+    );
+    const tabBarSource = await readFile(
+      resolve(process.cwd(), 'miniprogram/custom-tab-bar/index.ts'),
+      'utf8',
+    );
+    const profileMarkup = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/profile/index.wxml'),
+      'utf8',
+    );
+
+    expect(source).toContain("label: '今日'");
+    expect(source).toContain("label: '历史'");
+    expect(source).toContain("label: '我的'");
+    expect(source).toContain('const tabItems = [');
+    expect(source.match(/\{ url: '[^']+', label: '[^']+' \}/g)).toHaveLength(3);
+    expect(source).not.toContain("{ url: '/pages/settings/index', label: '设置' }");
+    expect(markup).toContain('is-active');
+    expect(markup).toContain('wx:if="{{activePath === item.url}}"');
+    expect(markup).toContain('class="nav-paw"');
+    expect(markup).toContain('class="nav-paw__art"');
+    expect(markup).toContain('src="/assets/navigation/paw-active.png"');
+    expect(markup).toContain('class="nav-label nav-label--active"');
+    expect(markup).toContain('wx:else class="nav-label"');
+    expect(markup).not.toContain('active-mark');
+    expect(markup).not.toContain('paw-icon');
+    expect(markup).not.toContain('paw-toe');
+    expect(markup).not.toContain('paw-pad');
+    expect(styles).toContain('.nav-item.is-active');
+    expect(styles).toContain('.nav-paw');
+    expect(styles).toContain('.nav-paw__art');
+    expect(styles).toContain('.nav-label--active');
+    expect(styles).not.toContain('.active-mark');
+    expect(styles).not.toContain('.paw-icon');
+    expect(styles).not.toContain('.paw-toe');
+    expect(styles).not.toContain('.paw-pad');
+    expect(styles).toContain('env(safe-area-inset-bottom)');
+    expect(styles).toMatch(/\.nav-item\s*\{[^}]*min-height:\s*(?:88|9\d|1\d{2,})rpx/s);
+    expect(styles).toMatch(/\.nav-label--active\s*\{(?=[^}]*position:\s*absolute)(?=[^}]*color:\s*#5f481e)[^}]*\}/s);
+    expect(styles).toMatch(/\.nav-item\s*\{[^}]*transition:\s*opacity\s+(?:1?\d\d|200)ms\s+ease,\s*background-color\s+(?:1?\d\d|200)ms\s+ease/s);
+    expect(styles).toMatch(/\.nav-item:active\s*\{(?=[^}]*opacity:)(?=[^}]*background-color:)[^}]*\}/s);
+    expect(styles).not.toMatch(/\.nav-item\s*\{[^}]*transition:[^}]*transform/s);
+    expect(tabBarSource).toContain('getCurrentPages');
+    expect(tabBarSource).toContain('activePath');
+    expect(source).toContain('wx.switchTab');
+    expect(profileMarkup).toContain('url="/pages/settings/index"');
+    expect(profileMarkup).toContain('<navigator class="settings-entry" url="/pages/settings/index" open-type="navigate">');
+    expect(profileMarkup).toContain('设置与说明');
+    expect(profileMarkup).toContain('隐私、AI 说明与账户数据');
+    expect(profileMarkup).not.toMatch(/[\u{1F300}-\u{1FAFF}]/u);
+    expect(profileMarkup.indexOf('<navigator class="settings-entry"')).toBeGreaterThan(
+      profileMarkup.indexOf('</block>'),
+    );
+
+    const profileStyles = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/profile/index.wxss'),
+      'utf8',
+    );
+    expect(profileStyles).toContain('.settings-entry');
+    expect(profileStyles).toMatch(/\.settings-entry[\s\S]*min-height:\s*88rpx/);
+  });
+
+  it('synchronizes the active custom tab from every tab page onShow', async () => {
+    const tabPages = [
+      ['today', '/pages/today/index'],
+      ['history', '/pages/history/index'],
+      ['profile', '/pages/profile/index'],
+    ] as const;
+
+    for (const [page, activePath] of tabPages) {
+      const source = await readFile(
+        resolve(process.cwd(), `miniprogram/pages/${page}/index.ts`),
+        'utf8',
+      );
+      expect(source).toContain('onShow()');
+      expect(source).toContain('this.getTabBar()');
+      expect(source).toContain(`activePath: '${activePath}'`);
+    }
   });
 
   it('loads Today from CloudBase with explicit page states and no sample tasks', async () => {
@@ -222,9 +430,72 @@ describe('native Mini Program structure', () => {
       'utf8',
     );
 
-    expect(markup).toContain("flow.completedTasks.length");
+    expect(markup).toContain("item.completedTasks.length");
     expect(markup).toContain('已完成');
     expect(markup).toContain('task="{{item}}"');
+  });
+
+  it('renders Today as collapsible multi-goal cards with whole-day capacity', async () => {
+    const markup = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/today/index.wxml'),
+      'utf8',
+    );
+    const source = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/today/index.ts'),
+      'utf8',
+    );
+    const styles = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/today/index.wxss'),
+      'utf8',
+    );
+
+    expect(markup).toContain('今日目标 {{flow.goalViews.length}}/3');
+    expect(markup).toContain('wx:for="{{flow.goalViews}}"');
+    expect(markup).toContain('bindtap="onToggleGoal"');
+    expect(markup).toContain('data-goal-id="{{item.goalId}}"');
+    expect(markup).toContain('width: {{item.progressPercent}}%');
+    expect(markup).toContain('已完成 {{item.completedCount}}/{{item.totalCount}} 项');
+    expect(markup).toContain('item.currentTask');
+    expect(markup).toContain('item.pendingTasks');
+    expect(markup).toContain('item.completedTasks');
+    expect(markup).toContain('can-start="{{!item.currentTask}}"');
+    expect(markup).toContain(
+      'flow.taskUpdatesByGoalId[item.goalId].taskId === item.currentTask.id',
+    );
+    expect(markup).toContain(
+      'flow.taskUpdatesByGoalId[item.goalId].taskId === task.id',
+    );
+    expect(markup).not.toContain(
+      'updating="{{flow.taskUpdatesByGoalId[item.goalId] && !flow.taskUpdateErrorsByGoalId[item.goalId]}}"',
+    );
+    expect(markup).toContain('＋拆解新目标');
+    expect(markup).toContain('今天已经有 3 个目标啦，先陪它们走完吧。');
+    expect(markup).toContain('今天已经安排了 10 个小步，先完成一些再继续吧。');
+    expect(source).toContain('onShow()');
+    expect(source).toContain('onAddGoal()');
+    expect(source).toContain("wx.navigateTo({ url: '/pages/goal/index' })");
+    expect(styles).toMatch(/\.goal-card__toggle\s*\{[^}]*min-height:\s*88rpx/s);
+    expect(styles).toContain('env(safe-area-inset-bottom)');
+  });
+
+  it('returns from Goal confirmation through the native page stack without a custom Home button', async () => {
+    const markup = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/goal/index.wxml'),
+      'utf8',
+    );
+    const source = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/goal/index.ts'),
+      'utf8',
+    );
+
+    expect(source).toContain('getCurrentPages().length > 1');
+    expect(source).toContain('wx.navigateBack({ delta: 1 })');
+    expect(source).toContain("wx.switchTab({ url: '/pages/today/index' })");
+    expect(source).toContain('LIMIT_REACHED');
+    expect(source).toContain('今天的目标或任务名额已经满了');
+    expect(markup).not.toContain('Home');
+    expect(markup).not.toContain('首页');
+    expect(markup).toContain('<bottom-navigation');
   });
 
   it('offers explicit subscription-message authorization from the ready Today plan', async () => {
@@ -237,13 +508,14 @@ describe('native Mini Program structure', () => {
     expect(template).toContain('15 分钟后提醒开始，今晚 21:00 提醒复盘');
   });
 
-  it('lets users open the registered privacy and account page from Today', async () => {
+  it('keeps privacy and account controls out of Today content', async () => {
     const template = await readFile(
       resolve(process.cwd(), 'miniprogram/pages/today/index.wxml'),
       'utf8',
     );
 
-    expect(template).toContain('url="/pages/profile/index"');
+    expect(template).not.toContain('url="/pages/profile/index"');
+    expect(template).not.toContain('删除全部数据');
   });
 
   it('retries failed review generation instead of only returning to its idle state', async () => {

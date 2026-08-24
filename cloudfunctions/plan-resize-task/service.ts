@@ -13,9 +13,19 @@ export interface StoredResizableTask {
   difficulty: Difficulty;
   priority: number;
   status: 'pending' | 'in_progress' | 'completed';
+  startRequestId?: string;
+  startedAt?: string;
+  completeRequestId?: string;
+  completedAt?: string;
   resizeRequestId?: string;
   resizedAt?: string;
+  resizeSource?: 'ai' | 'fallback' | 'rule';
 }
+
+type ResizeCandidate = Pick<
+  StoredResizableTask,
+  'title' | 'action' | 'estimatedMinutes' | 'doneCriteria' | 'reason' | 'difficulty'
+>;
 
 export interface StoredResizablePlan {
   id: string;
@@ -81,10 +91,14 @@ function isInput(value: unknown): value is PlanResizeInput {
   );
 }
 
+function isResizable(task: StoredResizableTask | undefined): task is StoredResizableTask {
+  return task?.status === 'pending' || task?.status === 'in_progress';
+}
+
 function isCandidate(
   value: unknown,
   original: StoredResizableTask,
-): value is Omit<StoredResizableTask, 'id' | 'goalId' | 'priority' | 'status'> {
+): value is ResizeCandidate {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     return false;
   }
@@ -103,10 +117,7 @@ function isCandidate(
   );
 }
 
-function fallbackTask(original: StoredResizableTask): Omit<
-  StoredResizableTask,
-  'id' | 'goalId' | 'priority' | 'status'
-> {
+function fallbackTask(original: StoredResizableTask): ResizeCandidate {
   const minutes = Math.max(1, Math.ceil(original.estimatedMinutes / 2));
   return {
     title: `缩小：${original.title}`,
@@ -139,11 +150,14 @@ export async function resizeOwnedTask(
         (task) => task.id === input.taskId.trim(),
       );
       const original = storedPlan.tasks[taskIndex];
-      if (!original || original.status !== 'pending') {
+      if (!original) {
         throw new PlanResizeError('INVALID_CONTEXT');
       }
       if (original.resizeRequestId === input.requestId.trim()) {
         return storedPlan;
+      }
+      if (!isResizable(original)) {
+        throw new PlanResizeError('INVALID_CONTEXT');
       }
 
       return storedPlan;
@@ -154,9 +168,17 @@ export async function resizeOwnedTask(
   }
 
   const original = plan.tasks.find((task) => task.id === input.taskId.trim());
-  if (!original || original.status !== 'pending') {
+  if (!original) {
     throw new PlanResizeError('INVALID_CONTEXT');
   }
+  if (original.resizeRequestId === input.requestId.trim()) {
+    return { source: original.resizeSource ?? 'rule', plan };
+  }
+  if (!isResizable(original)) {
+    throw new PlanResizeError('INVALID_CONTEXT');
+  }
+  const originalResizeRequestId = original.resizeRequestId;
+  const originalResizedAt = original.resizedAt;
   if (input.action === 'move_to_end') {
     const updatedPlan = await repository.updateOwnedPlan(
       openid,
@@ -165,11 +187,14 @@ export async function resizeOwnedTask(
         const task = storedPlan.tasks.find(
           (candidate) => candidate.id === input.taskId.trim(),
         );
-        if (!task || task.status !== 'pending') {
+        if (!task) {
           throw new PlanResizeError('INVALID_CONTEXT');
         }
         if (task.resizeRequestId === input.requestId.trim()) {
           return storedPlan;
+        }
+        if (task.status !== 'pending') {
+          throw new PlanResizeError('INVALID_CONTEXT');
         }
         return {
           ...storedPlan,
@@ -177,9 +202,15 @@ export async function resizeOwnedTask(
             candidate.id === task.id
               ? {
                   ...candidate,
-                  priority: Math.max(...storedPlan.tasks.map((item) => item.priority)) + 1,
+                  priority:
+                    Math.max(
+                      ...storedPlan.tasks
+                        .filter((item) => item.goalId === task.goalId)
+                        .map((item) => item.priority),
+                    ) + 1,
                   resizeRequestId: input.requestId.trim(),
                   resizedAt: now().toISOString(),
+                  resizeSource: 'rule',
                 }
               : candidate,
           ),
@@ -214,11 +245,21 @@ export async function resizeOwnedTask(
       const task = storedPlan.tasks.find(
         (candidate) => candidate.id === input.taskId.trim(),
       );
-      if (!task || task.status !== 'pending') {
+      if (!task) {
         throw new PlanResizeError('INVALID_CONTEXT');
       }
       if (task.resizeRequestId === input.requestId.trim()) {
         return storedPlan;
+      }
+      if (!isResizable(task)) {
+        throw new PlanResizeError('INVALID_CONTEXT');
+      }
+      if (
+        task.resizeRequestId !== originalResizeRequestId ||
+        task.resizedAt !== originalResizedAt ||
+        !isCandidate(replacement, task)
+      ) {
+        throw new PlanResizeError('INVALID_CONTEXT');
       }
       return {
         ...storedPlan,
@@ -226,9 +267,15 @@ export async function resizeOwnedTask(
           candidate.id === task.id
             ? {
                 ...candidate,
-                ...replacement,
+                title: replacement.title,
+                action: replacement.action,
+                estimatedMinutes: replacement.estimatedMinutes,
+                doneCriteria: replacement.doneCriteria,
+                reason: replacement.reason,
+                difficulty: replacement.difficulty,
                 resizeRequestId: input.requestId.trim(),
                 resizedAt: now().toISOString(),
+                resizeSource: source,
               }
             : candidate,
         ),
@@ -238,5 +285,9 @@ export async function resizeOwnedTask(
   if (!updatedPlan) {
     throw new PlanResizeError('INVALID_CONTEXT');
   }
-  return { source, plan: updatedPlan };
+  const updatedTask = updatedPlan.tasks.find((task) => task.id === input.taskId.trim());
+  if (!updatedTask) {
+    throw new PlanResizeError('INVALID_CONTEXT');
+  }
+  return { source: updatedTask.resizeSource ?? source, plan: updatedPlan };
 }

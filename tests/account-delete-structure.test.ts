@@ -14,9 +14,28 @@ describe('account deletion deployment and privacy page', () => {
     const entry = await readFile(resolve(root, 'index.ts'), 'utf8');
     expect(entry).toContain('deletion_audits');
   });
-  it('offers AI and deletion disclosure in the profile page', async () => {
+  it('offers AI, privacy and deletion disclosure in the settings page', async () => {
+    const page = resolve(process.cwd(), 'miniprogram', 'pages', 'settings');
+    const source = await readFile(resolve(page, 'index.ts'), 'utf8');
+    const markup = await readFile(resolve(page, 'index.wxml'), 'utf8');
+
+    expect(source).toContain('deleteAccount');
+    expect(source).toContain('onDeleteAccount');
+    expect(markup).toContain('AI 生成内容');
+    expect(markup).toContain('隐私与数据');
+    expect(markup).toContain('删除全部数据');
+  });
+
+  it('keeps compliance and deletion controls out of the growth page', async () => {
     const page = resolve(process.cwd(), 'miniprogram', 'pages', 'profile');
-    expect(await readFile(resolve(page, 'index.wxml'), 'utf8')).toContain('AI 生成内容');
-    expect(await readFile(resolve(page, 'index.wxml'), 'utf8')).toContain('删除全部数据');
+    const source = await readFile(resolve(page, 'index.ts'), 'utf8');
+    const markup = await readFile(resolve(page, 'index.wxml'), 'utf8');
+
+    expect(source).not.toContain('deleteAccount');
+    expect(source).not.toContain('onDeleteAccount');
+    expect(markup).toContain('设置与说明');
+    expect(markup).not.toContain('AI 生成内容');
+    expect(markup).not.toContain('隐私与数据');
+    expect(markup).not.toContain('删除全部数据');
   });
 });

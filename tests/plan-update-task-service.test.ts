@@ -69,6 +69,52 @@ describe('updatePlanTask', () => {
     );
   });
 
+  it('rejects starting a pending sibling when the goal already has an in-progress task', async () => {
+    const stored = createPlan();
+    stored.tasks.push({
+      ...stored.tasks[0],
+      id: 'task-2',
+      status: 'in_progress',
+      startRequestId: 'start-2',
+      startedAt: '2026-08-10T16:10:00.000Z',
+    });
+
+    await expect(
+      updatePlanTask(
+        'user-1',
+        { requestId: 'start-1', planId: 'plan-1', taskId: 'task-1', action: 'start' },
+        createRepository(stored),
+        now,
+      ),
+    ).rejects.toEqual(new PlanTaskUpdateError('INVALID_CONTEXT'));
+  });
+
+  it('starts a pending task when another goal has an in-progress task', async () => {
+    const stored = createPlan();
+    stored.tasks.push({
+      ...stored.tasks[0],
+      id: 'task-2',
+      goalId: 'goal-2',
+      status: 'in_progress',
+      startRequestId: 'start-2',
+      startedAt: '2026-08-10T16:10:00.000Z',
+    });
+
+    const plan = await updatePlanTask(
+      'user-1',
+      { requestId: 'start-1', planId: 'plan-1', taskId: 'task-1', action: 'start' },
+      createRepository(stored),
+      now,
+    );
+
+    expect(plan.tasks[0]).toMatchObject({ status: 'in_progress' });
+    expect(plan.tasks[1]).toMatchObject({
+      goalId: 'goal-2',
+      status: 'in_progress',
+      startRequestId: 'start-2',
+    });
+  });
+
   it('completes an in-progress task without replacing its recommended difficulty', async () => {
     const stored = createPlan();
     stored.tasks[0] = {

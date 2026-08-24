@@ -47,6 +47,22 @@ describe('validateDailyPlanStructure', () => {
     ).toThrow(new DailyPlanValidationError('TASK_COUNT'));
   });
 
+  it('rejects a plan longer than the trusted max task count', () => {
+    const tasks = Array.from({ length: 3 }, (_value, index) => ({
+      ...validCandidate.tasks[0],
+      title: `任务 ${index + 1}`,
+      action: `执行动作 ${index + 1}`,
+      estimatedMinutes: 10,
+    }));
+
+    expect(() =>
+      validateDailyPlanStructure(
+        { ...validCandidate, tasks },
+        { availableMinutes: 60, goalIds: ['goal-1'], maxTasks: 2 },
+      ),
+    ).toThrow(new DailyPlanValidationError('TASK_COUNT'));
+  });
+
   it('accepts exactly five distinct tasks', () => {
     const tasks = Array.from({ length: 5 }, (_value, index) => ({
       ...validCandidate.tasks[0],

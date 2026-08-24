@@ -41,6 +41,7 @@ npm.cmd run build --prefix cloudfunctions/plan-confirm
 npm.cmd run build --prefix cloudfunctions/plan-get-today
 npm.cmd run build --prefix cloudfunctions/plan-update-task
 npm.cmd run build --prefix cloudfunctions/plan-history
+npm.cmd run build --prefix cloudfunctions/growth-summary
 npm.cmd run build --prefix cloudfunctions/review-generate
 npm.cmd run build --prefix cloudfunctions/review-confirm
 npm.cmd run build --prefix cloudfunctions/plan-resize-task
@@ -151,8 +152,8 @@ Remove-Item Env:TOKENHUB_MODEL
 ## 手工检查目标到计划流程
 
 1. 构建并部署 `goal-next-step`、`goal-confirm`、`plan-generate`、`plan-confirm`、`plan-get-today` 和 `plan-update-task`，为两个 AI 函数配置相同的 TokenHub 环境变量。
-2. 在微信开发者工具中重新编译，确认首页显示“第一次猫步”。
-3. 选择学习或工作目标，输入标题并完成不超过三个澄清问题。
+2. 在微信开发者工具中重新编译，确认首页为 Today 且底部显示四项导航；无计划时点击“去制定计划”，确认进入“第一次猫步”且左上角可返回 Today。
+3. 选择学习或工作目标，输入标题并完成不超过三个澄清问题；中途返回 Today 后应可使用底部导航自由切换。
 4. 检查目标摘要，点击确认，选择 15、30 或 60 分钟。
 5. 在计划预览中编辑或删除任务，确认计划仍包含具体动作、预计时长、完成标准和原因，总时长不超过选择值。
 6. 点击明确的确认操作，确认页面跳转到 Today；在数据库中确认 `goals` 和 `plans` 文档的 `_openid` 与当前用户一致。
@@ -202,6 +203,29 @@ Remove-Item Env:TOKENHUB_MODEL
 4. 滚动到页面末尾，确认最后一项能完整滚动到底部安全区上方，不被系统手势条或微信底部区域遮挡。
 5. 以上步骤须由操作者记录实际机型、系统字号档位和通过/失败；未执行时只能写“未验证”，不得写成真机已通过。
 
+## 部署并验收个人成长页
+
+1. 在仓库根目录构建成长摘要云函数：
+
+   ```powershell
+   npm.cmd run build --prefix cloudfunctions/growth-summary
+   ```
+
+2. 打开 CloudBase 控制台的“文档型数据库 → reviews → 索引管理”，确认或创建普通、非唯一组合索引 `reviews(_openid,createdAt)`。查询先按 `_openid` 等值筛选，再按 `createdAt` 从新到旧取最多三条；字段方向按目标环境的控制台缺失索引提示创建，不在文档中猜测。
+3. 在微信开发者工具的 `cloudfunctions/growth-summary` 目录上右键，选择“上传并部署：云端安装依赖”。该函数不需要客户端传 OpenID，也不需要 AI 环境变量。
+4. 重新编译小程序并进入“成长”页。确认页面显示当前账号在 `users.growth` 中的真实累计成长值、正确等级和最多三条最近复盘成长记录；页面不得显示连续天数或累计完成任务数。
+5. 使用两个测试微信身份分别打开成长页，确认累计成长值和最近成长记录互不可见。验收记录只写“通过 / 未通过 / 未验证”，不记录 OpenID、复盘正文或密钥。
+6. 点击小橘，依次确认眨眼、挥爪和轻跳动作只短暂出现并回到当前姿态；页面在任何设置下都不自动循环播放角色动画。开启系统“减少动态效果”后再次进入页面，确认没有自动动画，同时成长值、等级、最近成长和删除入口仍可正常读取和操作。
+
+### 原生底部导航与设置页验收
+
+1. 在微信开发者工具中清除编译缓存并重新编译，确认底部固定显示“今日 / 历史 / 我的 / 设置”四项，默认从目标流程进入 Today 时“今日”处于选中态。
+2. 依次点击四项，确认页面可直接切换且不会不断叠加返回层级；Today 顶部不再重复显示“历史”“我的”，历史页不再显示“返回 Today”。
+3. 确认“我的”只展示小橘、等级、成长值和最近成长；AI 说明、隐私说明与“删除全部数据”只出现在“设置”。
+4. 使用匿名测试数据从设置页执行删除；成功后切换到“我的”，确认页面重新读取并显示成长值 0 和新用户欢迎状态。不要在验收记录中保存 OpenID、正文或密钥。
+5. 在历史和我的页面滚动到底，确认最后内容不被原生 tabBar 遮挡；在 Windows 开发者工具和至少一台真机确认中文显示为系统字体、标题不过度粗重。
+6. 每项结果只记录“通过 / 未通过 / 未验证”；未在真实开发者工具或真机执行时不得记为通过。
+
 ### 2026-08-10 Day 3 验证记录
 
 已在微信开发者工具连接真实 CloudBase 开发环境完成以下验证：确认计划并写入 `plans`、加载 Today、开始任务、使用同一请求 ID 稳定重试、完成任务，以及写入 `difficultyFeedback: "just_right"`。验证期间计划生成走规则降级，因此该记录不代表真实 TokenHub 模型连通已经通过；物理真机、体验版和发布部署也仍待验证。
@@ -233,6 +257,7 @@ npm.cmd run build --prefix cloudfunctions/plan-confirm
 npm.cmd run build --prefix cloudfunctions/plan-get-today
 npm.cmd run build --prefix cloudfunctions/plan-update-task
 npm.cmd run build --prefix cloudfunctions/plan-history
+npm.cmd run build --prefix cloudfunctions/growth-summary
 ```
 
 确认对应 `package.json` 的 `main` 文件存在，再选择云端安装依赖并重新部署。
@@ -245,4 +270,6 @@ npm.cmd run build --prefix cloudfunctions/plan-history
 - [Day 2 Completion 实施计划](superpowers/plans/2026-08-07-day2-completion.md)
 - [Day 3 任务执行设计](superpowers/specs/2026-08-10-day3-execution-design.md)
 - [Day 3 任务执行实施计划](superpowers/plans/2026-08-10-day3-execution.md)
+- [成长角色素材包与成长页设计](superpowers/specs/2026-08-19-growth-character-pack-design.md)
+- [成长角色素材包与成长页实施计划](superpowers/plans/2026-08-19-growth-character-pack.md)
 - [Day 1 Foundation 实施计划](superpowers/plans/2026-08-06-day1-foundation.md)

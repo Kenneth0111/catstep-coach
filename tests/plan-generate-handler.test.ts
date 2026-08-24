@@ -32,6 +32,9 @@ function ownedRepository(): OwnedGoalRepository {
         },
       ];
     },
+    async getTodayCapacity() {
+      return null;
+    },
   };
 }
 
@@ -101,7 +104,10 @@ describe('plan.generate handler', () => {
     const deps = dependencies({
       openid: 'user-1',
       model: 'hy3',
-      repository: { async findActiveByIds() { return []; } },
+      repository: {
+        ...ownedRepository(),
+        async findActiveByIds() { return []; },
+      },
     });
 
     await expect(handlePlanGenerate(event, {}, deps)).resolves.toEqual({
@@ -157,7 +163,10 @@ describe('plan.generate handler', () => {
       openid: 'user-1',
       apiKey: 'secret',
       model: 'hy3',
-      repository: { async findActiveByIds() { return []; } },
+      repository: {
+        ...ownedRepository(),
+        async findActiveByIds() { return []; },
+      },
     });
 
     await expect(handlePlanGenerate(event, {}, deps)).resolves.toEqual({
@@ -173,6 +182,7 @@ describe('plan.generate handler', () => {
       apiKey: 'secret',
       model: 'hy3',
       repository: {
+        ...ownedRepository(),
         async findActiveByIds() {
           throw new Error('database-secret-detail');
         },
@@ -188,6 +198,29 @@ describe('plan.generate handler', () => {
   it('rejects exhausted quota after ownership validation without calling the model', async () => {
     const deps = dependencies({ openid: 'user-1', apiKey: 'secret', model: 'hy3', claimQuota: async () => { throw Object.assign(new Error('quota'), { code: 'QUOTA_EXCEEDED' }); } });
     await expect(handlePlanGenerate(event, {}, deps)).resolves.toEqual({ ok: false, code: 'QUOTA_EXCEEDED' });
+    expect(deps.createProvider).not.toHaveBeenCalled();
+  });
+
+  it('forwards the daily capacity limit without claiming quota or creating a provider', async () => {
+    const claimQuota = vi.fn(async () => undefined);
+    const deps = dependencies({
+      openid: 'user-1',
+      apiKey: 'secret',
+      model: 'hy3',
+      claimQuota,
+      repository: {
+        ...ownedRepository(),
+        async getTodayCapacity() {
+          return { goalIds: ['goal-2', 'goal-3', 'goal-4'], taskCount: 3 };
+        },
+      },
+    });
+
+    await expect(handlePlanGenerate(event, {}, deps)).resolves.toEqual({
+      ok: false,
+      code: 'LIMIT_REACHED',
+    });
+    expect(claimQuota).not.toHaveBeenCalled();
     expect(deps.createProvider).not.toHaveBeenCalled();
   });
 });
