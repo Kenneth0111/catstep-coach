@@ -23,6 +23,7 @@ import {
   type GoalType,
   type PublicErrorCode,
 } from '../../shared/goal-flow';
+import { playSoundEffect } from '../../shared/sound-effects';
 
 const errorMessages: Record<PublicErrorCode, string> = {
   UNAUTHENTICATED: '请先使用已关联云环境的小程序账号。',
@@ -51,6 +52,7 @@ Page({
 
   onSelectType(event: WechatMiniprogram.TouchEvent) {
     const type = String(event.currentTarget.dataset.type) as GoalType;
+    playSoundEffect('tap');
     this.setData({ draftType: type });
   },
 
@@ -89,6 +91,7 @@ Page({
         this.data.draftType,
         this.data.draftTitle,
       );
+      playSoundEffect('action');
       this.setData({ flow, errorMessage: '' });
       await this.fetchNextStep(flow);
     } catch {
@@ -99,6 +102,7 @@ Page({
   async onSubmitAnswer() {
     try {
       const flow = submitGoalAnswer(this.data.flow, this.data.answerText);
+      playSoundEffect('action');
       this.setData({ flow, answerText: '', errorMessage: '' });
       await this.fetchNextStep(flow);
     } catch {
@@ -110,6 +114,7 @@ Page({
     const requestId = this.data.requestId || createRequestId();
     try {
       const flow = beginGoalConfirmation(this.data.flow);
+      playSoundEffect('action');
       this.setData({ flow, requestId, errorMessage: '' });
       await this.confirmCurrentGoal(flow, requestId);
     } catch {
@@ -121,6 +126,7 @@ Page({
     try {
       const minutes = Number(event.currentTarget.dataset.minutes);
       const flow = selectAvailableMinutes(this.data.flow, minutes);
+      playSoundEffect('tap');
       this.setData({ flow, errorMessage: '' });
       await this.generatePlan(flow);
     } catch {
@@ -129,6 +135,7 @@ Page({
   },
 
   async onRetry() {
+    playSoundEffect('action');
     const flow = retryGoalFlow(this.data.flow);
     this.setData({ flow, errorMessage: '' });
     if (flow.pendingAction === 'nextStep') {
@@ -177,6 +184,7 @@ Page({
   onRemovePlanTask(event: WechatMiniprogram.TouchEvent) {
     try {
       const index = Number(event.currentTarget.dataset.index);
+      playSoundEffect('tap');
       this.setData({ flow: removePlanTask(this.data.flow, index) });
     } catch {
       wx.showToast({ title: '今天至少保留一小步', icon: 'none' });
@@ -199,6 +207,7 @@ Page({
         availableMinutes: this.data.flow.availableMinutes,
         plan: this.data.flow.plan,
       });
+      playSoundEffect('success');
       if (getCurrentPages().length > 1) {
         await wx.navigateBack({ delta: 1 });
       } else {

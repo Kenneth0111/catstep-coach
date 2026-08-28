@@ -435,6 +435,31 @@ describe('native Mini Program structure', () => {
     expect(markup).toContain('task="{{item}}"');
   });
 
+  it('uses the concise target label in the Today summary', async () => {
+    const markup = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/today/index.wxml'),
+      'utf8',
+    );
+
+    expect(markup).toContain(
+      '<text class="summary-metric__label">目标</text>',
+    );
+    expect(markup).not.toContain('目标槽位');
+  });
+
+  it('vertically centers the reminder button label', async () => {
+    const styles = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/today/index.wxss'),
+      'utf8',
+    );
+    const reminderActionRule =
+      styles.match(/\.reminder-action\s*\{([^}]*)\}/s)?.[1] ?? '';
+
+    expect(reminderActionRule).toContain('display: flex;');
+    expect(reminderActionRule).toContain('align-items: center;');
+    expect(reminderActionRule).toContain('justify-content: center;');
+  });
+
   it('renders Today as collapsible multi-goal cards with whole-day capacity', async () => {
     const markup = await readFile(
       resolve(process.cwd(), 'miniprogram/pages/today/index.wxml'),
@@ -449,10 +474,17 @@ describe('native Mini Program structure', () => {
       'utf8',
     );
 
-    expect(markup).toContain('今日目标 {{flow.goalViews.length}}/3');
+    expect(markup).toContain('class="summary-grid"');
+    expect(markup).toContain('class="summary-metric__value"');
+    expect(markup).toContain('今日进度');
+    expect(markup).toContain('预计剩余');
+    expect(markup).toContain('目标');
+    expect(markup).toContain('class="goal-toolbar"');
+    expect(markup).toContain('还可添加 {{3 - flow.goalViews.length}} 个');
     expect(markup).toContain('wx:for="{{flow.goalViews}}"');
     expect(markup).toContain('bindtap="onToggleGoal"');
     expect(markup).toContain('data-goal-id="{{item.goalId}}"');
+    expect(markup).toContain('class="goal-card__chevron');
     expect(markup).toContain('width: {{item.progressPercent}}%');
     expect(markup).toContain('已完成 {{item.completedCount}}/{{item.totalCount}} 项');
     expect(markup).toContain('item.currentTask');
@@ -468,14 +500,50 @@ describe('native Mini Program structure', () => {
     expect(markup).not.toContain(
       'updating="{{flow.taskUpdatesByGoalId[item.goalId] && !flow.taskUpdateErrorsByGoalId[item.goalId]}}"',
     );
-    expect(markup).toContain('＋拆解新目标');
+    expect(markup).toContain('＋ 添加新目标');
+    expect(markup).not.toContain('＋拆解新目标');
     expect(markup).toContain('今天已经有 3 个目标啦，先陪它们走完吧。');
     expect(markup).toContain('今天已经安排了 10 个小步，先完成一些再继续吧。');
     expect(source).toContain('onShow()');
     expect(source).toContain('onAddGoal()');
     expect(source).toContain("wx.navigateTo({ url: '/pages/goal/index' })");
     expect(styles).toMatch(/\.goal-card__toggle\s*\{[^}]*min-height:\s*88rpx/s);
+    expect(styles).toMatch(/\.summary-grid\s*\{[^}]*grid-template-columns:\s*repeat\(3,/s);
+    expect(styles).toContain('.goal-toolbar');
+    expect(styles).toContain('.goal-card__chevron');
     expect(styles).toContain('env(safe-area-inset-bottom)');
+  });
+
+  it('keeps the Version 2 dashboard shell visible when Today has no confirmed plan', async () => {
+    const markup = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/today/index.wxml'),
+      'utf8',
+    );
+    const source = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/today/index.ts'),
+      'utf8',
+    );
+    const styles = await readFile(
+      resolve(process.cwd(), 'miniprogram/pages/today/index.wxss'),
+      'utf8',
+    );
+
+    expect(markup).toContain('<view class="summary-grid">');
+    expect(markup).toContain('{{todayLabel}}');
+    expect(markup).toContain('class="intro-badge">今日计划</text>');
+    expect(markup).toContain('class="intro-title-row"');
+    expect(markup).toContain('class="summary-metric__value">0/0</text>');
+    expect(markup).toContain('class="summary-metric__value">0</text>');
+    expect(markup).toContain(
+      'wx:if="{{flow.stage === \'empty\' || flow.stage === \'ready\'}}" class="goal-toolbar"',
+    );
+    expect(markup).toContain('class="empty-goals"');
+    expect(markup).not.toContain(
+      '<view class="state-card" wx:if="{{flow.stage === \'empty\'}}">',
+    );
+    expect(source).toContain('formatTodayLabel');
+    expect(source).toContain('todayLabel: formatTodayLabel()');
+    expect(styles).toContain('.empty-goals');
   });
 
   it('returns from Goal confirmation through the native page stack without a custom Home button', async () => {

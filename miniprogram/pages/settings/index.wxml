@@ -14,6 +14,13 @@
       <text class="setting-title">隐私与数据</text>
       <text class="setting-copy">数据按当前微信身份隔离；技术日志不保存你的目标和复盘正文。</text>
     </view>
+    <view class="setting-row setting-row--toggle">
+      <view>
+        <text class="setting-title">交互音效</text>
+        <text class="setting-copy">轻点按钮和小橘时播放简短提示音；关闭后不会播放。</text>
+      </view>
+      <switch checked="{{soundEffectsEnabled}}" color="#356F63" bindchange="onSoundEffectsChange" aria-label="交互音效" />
+    </view>
   </view>
 
   <view class="danger-card">

@@ -3,6 +3,7 @@ const tabItems = [
   { url: '/pages/history/index', label: '历史' },
   { url: '/pages/profile/index', label: '我的' },
 ];
+import { playSoundEffect } from '../../shared/sound-effects';
 
 Component({
   properties: {
@@ -18,6 +19,7 @@ Component({
   methods: {
     onTap(event: WechatMiniprogram.TouchEvent) {
       const url = String(event.currentTarget.dataset.url);
+      playSoundEffect('tap');
       if (this.data.intercept) {
         this.triggerEvent('navigate', { url });
         return;

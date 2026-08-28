@@ -75,6 +75,7 @@ AI 能力拆分为 `clarifyGoal`、`generateDailyPlan`、`resizeTask` 和 `gener
 ## 文档
 
 - [本地开发指南](docs/development.md)
+- [AI 运行时统一配置设计](docs/superpowers/specs/2026-08-28-ai-runtime-configuration-design.md)
 - [猫步计划微信小程序 MVP：产品需求与技术设计](docs/superpowers/specs/2026-08-06-catstep-mini-program-design.md)
 - [Day 1 Foundation 实施计划](docs/superpowers/plans/2026-08-06-day1-foundation.md)
 - [Day 2 Completion 设计](docs/superpowers/specs/2026-08-07-day2-completion-design.md)

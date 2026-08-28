@@ -1,9 +1,28 @@
 import { deleteAccount } from '../../shared/cloud-api';
+import {
+  getSoundEffectsEnabled,
+  playSoundEffect,
+  setSoundEffectsEnabled,
+} from '../../shared/sound-effects';
 
 Page({
   data: {
     deleting: false,
     message: '',
+    soundEffectsEnabled: true,
+  },
+
+  onLoad() {
+    this.setData({ soundEffectsEnabled: getSoundEffectsEnabled() });
+  },
+
+  onSoundEffectsChange(event: WechatMiniprogram.CustomEvent<{ value: boolean }>) {
+    const enabled = event.detail.value;
+    setSoundEffectsEnabled(enabled);
+    this.setData({ soundEffectsEnabled: enabled });
+    if (enabled) {
+      playSoundEffect('tap');
+    }
   },
 
   async onDeleteAccount() {
@@ -16,6 +35,7 @@ Page({
     if (!confirmation.confirm) {
       return;
     }
+    playSoundEffect('action');
     this.setData({ deleting: true, message: '' });
     try {
       await deleteAccount();

@@ -1,4 +1,5 @@
 import type { TodayTask } from '../../shared/today-plan';
+import { playSoundEffect } from '../../shared/sound-effects';
 
 Component({
   properties: {
@@ -36,15 +37,18 @@ Component({
         return;
       }
       const task = this.properties.task as TodayTask;
+      playSoundEffect('action');
       this.triggerEvent('starttask', { taskId: task.id });
     },
     onResize() {
       if (!this.properties.updating) {
+        playSoundEffect('action');
         this.triggerEvent('resizetask', { taskId: (this.properties.task as TodayTask).id });
       }
     },
     onMoveToEnd() {
       if (!this.properties.updating) {
+        playSoundEffect('action');
         this.triggerEvent('movetasktoend', { taskId: (this.properties.task as TodayTask).id });
       }
     },
@@ -56,6 +60,7 @@ Component({
       if (this.properties.updating) {
         return;
       }
+      playSoundEffect('tap');
       this.setData({ selectedDifficulty: event.currentTarget.dataset.difficulty });
     },
     onComplete() {
@@ -65,6 +70,7 @@ Component({
       const task = this.properties.task as TodayTask;
       const difficulty = this.data.selectedDifficulty;
       if (difficulty === 'easy' || difficulty === 'just_right' || difficulty === 'hard') {
+        playSoundEffect('action');
         this.triggerEvent('completetask', { taskId: task.id, difficulty });
       }
     },

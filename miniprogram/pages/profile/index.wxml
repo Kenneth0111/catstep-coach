@@ -60,7 +60,7 @@
   </block>
 
   <navigator class="settings-entry" url="/pages/settings/index" open-type="navigate">
-    <view>
+    <view bindtap="onOpenSettings">
       <text class="settings-entry-title">设置与说明</text>
       <text class="settings-entry-copy">隐私、AI 说明与账户数据</text>
     </view>

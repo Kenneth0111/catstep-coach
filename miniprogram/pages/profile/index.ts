@@ -10,6 +10,7 @@ import {
   type GrowthCharacter,
   type GrowthTaskStatus,
 } from '../../shared/growth-profile';
+import { playSoundEffect } from '../../shared/sound-effects';
 
 function taskStatusOf(plan: Awaited<ReturnType<typeof getTodayPlan>>): GrowthTaskStatus {
   if (!plan) {
@@ -68,7 +69,12 @@ Page({
   },
 
   onRetry() {
+    playSoundEffect('action');
     void this.loadGrowth();
+  },
+
+  onOpenSettings() {
+    playSoundEffect('tap');
   },
 
   async loadGrowth() {
@@ -98,6 +104,7 @@ Page({
     if (this.data.stage !== 'ready') {
       return;
     }
+    playSoundEffect('cat');
     const interactions = ['blink', 'wave', 'hop'] as const;
     const interactionIndex = this.data.interactionIndex % interactions.length;
     const character: GrowthCharacter = getGrowthCharacter(interactions[interactionIndex]);
