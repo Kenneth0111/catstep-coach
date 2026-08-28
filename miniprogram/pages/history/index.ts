@@ -10,6 +10,7 @@ import {
   type CalendarCell,
   type HistoryPageState,
 } from '../../shared/history-calendar';
+import { playSoundEffect } from '../../shared/sound-effects';
 
 const errorMessages = {
   UNAUTHENTICATED: '请先使用已关联云环境的小程序账号。',
@@ -90,6 +91,7 @@ Page({
     if (month === null) {
       return;
     }
+    playSoundEffect('tap');
     const flow = createHistoryPageState(month, `${month}-01`);
     this.showLoading(flow);
     void this.loadHistory(flow);
@@ -100,6 +102,7 @@ Page({
     if (month === null) {
       return;
     }
+    playSoundEffect('tap');
     const selectedDate = month === this.currentMonth
       ? this.currentDate
       : `${month}-01`;
@@ -120,6 +123,7 @@ Page({
     ) {
       return;
     }
+    playSoundEffect('tap');
     const flow = createHistoryPageState(
       this.data.flow.month,
       selectedDate,
@@ -130,6 +134,7 @@ Page({
   },
 
   onRetry() {
+    playSoundEffect('action');
     const flow = retryHistoryPage(this.data.flow);
     this.showLoading(flow);
     void this.loadHistory(flow);

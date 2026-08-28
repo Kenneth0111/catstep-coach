@@ -30,6 +30,7 @@ import {
   type TodayTaskUpdate,
   type TodayFlowState,
 } from '../../shared/today-flow';
+import { playSoundEffect } from '../../shared/sound-effects';
 
 const errorMessages = {
   UNAUTHENTICATED: '请先使用已关联云环境的小程序账号。',
@@ -58,8 +59,23 @@ const reviewConfirmationErrorMessages = {
   INTERNAL_ERROR: '复盘确认没有保存成功，再试一次就好。',
 } as const;
 
+const weekdays = [
+  '星期日',
+  '星期一',
+  '星期二',
+  '星期三',
+  '星期四',
+  '星期五',
+  '星期六',
+] as const;
+
+function formatTodayLabel(date = new Date()) {
+  return `${date.getMonth() + 1}月${date.getDate()}日 · ${weekdays[date.getDay()]}`;
+}
+
 Page({
   data: {
+    todayLabel: formatTodayLabel(),
     flow: createTodayFlowState(),
     errorMessage: '',
     taskUpdateErrorMessage: '',
@@ -105,6 +121,7 @@ Page({
   },
 
   async onRetry() {
+    playSoundEffect('action');
     const flow = retryTodayFlow(this.data.flow);
     await this.startTodayLoad(flow, true);
   },
@@ -112,6 +129,7 @@ Page({
   async onSubscribeReminders() {
     const planId = this.data.flow.plan?.id;
     if (!planId || this.data.reminderStage === 'requesting') return;
+    playSoundEffect('action');
     this.setData({ reminderStage: 'requesting', reminderMessage: '' });
     try {
       const result = await subscribeToTodayReminders(planId, {
@@ -167,6 +185,7 @@ Page({
   },
 
   onToggleGoal(event: WechatMiniprogram.TouchEvent) {
+    playSoundEffect('tap');
     this.setData({
       flow: toggleTodayGoal(
         this.data.flow,
@@ -182,10 +201,12 @@ Page({
     ) {
       return;
     }
+    playSoundEffect('action');
     void wx.navigateTo({ url: '/pages/goal/index' });
   },
 
   async onGenerateReview() {
+    playSoundEffect('action');
     const flow = beginTodayReview(this.data.flow);
     this.setData({ flow, reviewErrorMessage: '' });
     try {
@@ -201,6 +222,7 @@ Page({
   },
 
   async onRetryReview() {
+    playSoundEffect('action');
     this.setData({ flow: retryTodayReview(this.data.flow), reviewErrorMessage: '' });
     await this.onGenerateReview();
   },
@@ -221,6 +243,7 @@ Page({
         confirmMemory: this.data.confirmMemory,
       });
       this.setData({ flow: receiveTodayReviewConfirmation(this.data.flow, confirmed) });
+      playSoundEffect('success');
     } catch (error) {
       const code = error instanceof CloudApiError ? error.code : 'INTERNAL_ERROR';
       this.setData({
@@ -246,6 +269,7 @@ Page({
     if (!taskUpdate) {
       return;
     }
+    playSoundEffect('action');
     if (taskUpdate.action === 'resize' || taskUpdate.action === 'move_to_end') {
       await this.sendResizeTask(flow, taskUpdate.requestId);
     } else {
@@ -323,6 +347,7 @@ Page({
           '',
         ),
       });
+      playSoundEffect('success');
       this.refreshAfterDeferredTaskUpdates(nextFlow);
     } catch (error) {
       const code =

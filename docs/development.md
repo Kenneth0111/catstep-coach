@@ -87,13 +87,20 @@ git check-ignore project.private.config.json
 
 全部云函数都不在仓库中硬编码环境 ID。需要数据库访问的云函数通过 `@cloudbase/node-sdk` 的当前环境标识初始化；其他云函数仍从可信上下文读取身份。部署前先运行云函数构建命令，然后分别在各云函数目录上右键，选择云端安装依赖的上传部署方式。
 
-`goal-next-step` 和 `plan-generate` 云函数还需要在 CloudBase 控制台配置以下运行时环境变量：
+四个 AI 云函数（`goal-next-step`、`plan-generate`、`review-generate`、`plan-resize-task`）共享 CloudBase 数据库 `runtime_settings` 中固定的 `ai_provider` 文档。首次部署本次代码后，在控制台创建或修改这一个文档：
 
-- `TOKENHUB_API_KEY`：TokenHub API Key，必填。
-- `TOKENHUB_MODEL`：已在 TokenHub 开通且符合发布要求的模型 ID，必填。
-- `TOKENHUB_BASE_URL`：可选，默认使用境内地址 `https://tokenhub.tencentmaas.com/v1`。
+```json
+{
+  "_id": "ai_provider",
+  "apiKey": "TokenHub API Key",
+  "baseUrl": "https://tokenhub.tencentmaas.com/v1",
+  "model": "已开通的模型 ID"
+}
+```
 
-不要把真实值写进仓库。默认单次模型请求（包含响应体读取）在 5 秒后中止；工作流最多执行首次请求、一次重试和一次结构修复，总模型等待不超过 15 秒。若 `plan-generate` 的 `TOKENHUB_BASE_URL` 指向 `api.deepseek.com`，它会显式关闭思考模式，并把单次请求上限调为 8 秒，以适配直连 DeepSeek 的响应延迟；计划工作流最多发起两次模型请求，仍低于 20 秒云函数超时。规则降级时云函数日志会记录 `daily_plan_fallback`、失败阶段和错误码，不记录提示词、响应正文或密钥。部署时使用 Node.js 20，并把四个 AI 云函数的超时设置为至少 20 秒。上述 AI 环境变量用于 `goal-next-step`、`plan-generate`、`review-generate` 和 `plan-resize-task`。`plan-confirm`、`plan-get-today` 和 `plan-update-task` 三个 Day 3 云函数不需要硬编码环境 ID 或 AI 环境变量；它们使用可信 `WX_OPENID` 和当前 CloudBase 环境执行用户隔离的计划读写。本地自动测试使用假的 HTTP 边界，不会调用 TokenHub 或消耗额度。
+`apiKey` 和 `model` 必填，`baseUrl` 可省略（默认使用境内地址）。把 `runtime_settings` 的数据库权限设为客户端 `read: false`、`write: false`；该文档仅供云函数的服务端身份读取，绝不能从小程序查询、返回或写入日志。加载器不缓存，每次 AI 调用读取一次完整文档，因此控制台保存后下一次调用即使用新值，无需重启或重新部署。若文档缺失、字段为空或读取失败，四个云函数会整体回退到各自原有的 `TOKENHUB_API_KEY`、`TOKENHUB_BASE_URL`、`TOKENHUB_MODEL` 环境变量，便于迁移；不要在日常更新时同时修改两处。确认新文档实际生效后，可保留旧变量作为应急回退或按团队变更流程清除它们。
+
+不要把真实值写进仓库。默认单次模型请求（包含响应体读取）在 5 秒后中止；工作流最多执行首次请求、一次重试和一次结构修复，总模型等待不超过 15 秒。若 `plan-generate` 的 `baseUrl` 指向 `api.deepseek.com`，它会显式关闭思考模式，并把单次请求上限调为 8 秒，以适配直连 DeepSeek 的响应延迟；计划工作流最多发起两次模型请求，仍低于 20 秒云函数超时。规则降级时云函数日志会记录 `daily_plan_fallback`、失败阶段和错误码，不记录提示词、响应正文或密钥。部署时使用 Node.js 20，并把四个 AI 云函数的超时设置为至少 20 秒。`plan-confirm`、`plan-get-today` 和 `plan-update-task` 三个 Day 3 云函数不需要硬编码环境 ID 或 AI 配置；它们使用可信 `WX_OPENID` 和当前 CloudBase 环境执行用户隔离的计划读写。本地自动测试使用假的 HTTP 边界，不会调用 TokenHub 或消耗额度。
 
 目标引导页会依次调用三个 Day 2 云函数。`goal-confirm` 把用户确认的目标写入 `goals` 集合；`plan-generate` 只为当前微信身份拥有的活动目标生成计划。用户可在本地编辑或删除计划预览任务，再通过 `plan-confirm` 明确确认；服务端为同一用户的同一上海自然日原子地返回或创建一份计划。`plan-get-today` 只读取当前用户的已确认计划，`plan-update-task` 只更新当前用户拥有的计划任务。
 
@@ -231,6 +238,10 @@ Remove-Item Env:TOKENHUB_MODEL
 已在微信开发者工具连接真实 CloudBase 开发环境完成以下验证：确认计划并写入 `plans`、加载 Today、开始任务、使用同一请求 ID 稳定重试、完成任务，以及写入 `difficultyFeedback: "just_right"`。验证期间计划生成走规则降级，因此该记录不代表真实 TokenHub 模型连通已经通过；物理真机、体验版和发布部署也仍待验证。
 
 ## 常见问题
+
+### 交互音效
+
+小程序使用 `miniprogram/assets/sounds/` 内五段用户提供的本地 MP3，对外仍只有 `tap`、`action`、`success` 和 `cat` 四个语义类别；`cat` 会在 `cat1.mp3` 与 `cat2.mp3` 间按成功播放次数交替。所有页面通过 `miniprogram/shared/sound-effects.ts` 触发音效，不要在页面中直接管理文件名或创建音频上下文。该模块会对快速连续操作做冷却、保存“交互音效”开关，并忽略音频失败，不能让提示音影响主要操作；运行时不访问第三方音频服务。
 
 ### 导入后找不到页面
 

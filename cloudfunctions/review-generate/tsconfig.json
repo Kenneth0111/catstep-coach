@@ -9,6 +9,7 @@
   },
   "include": [
     "*.ts",
+    "../shared/ai-runtime-config.ts",
     "../shared/ai-provider.ts",
     "../shared/tokenhub-provider.ts"
   ]

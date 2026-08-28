@@ -9,6 +9,7 @@
   },
   "include": [
     "*.ts",
+    "../shared/ai-runtime-config.ts",
     "../shared/ai-provider.ts",
     "../shared/daily-plan.ts",
     "../shared/generate-daily-plan.ts",

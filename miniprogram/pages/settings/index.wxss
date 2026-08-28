@@ -62,6 +62,17 @@
   border-bottom: 0;
 }
 
+.setting-row--toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24rpx;
+}
+
+.setting-row--toggle switch {
+  flex: 0 0 auto;
+}
+
 .setting-title {
   display: block;
   margin-bottom: 8rpx;

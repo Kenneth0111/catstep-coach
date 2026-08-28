@@ -17,6 +17,7 @@ type Deferred<T> = {
 
 const mocks = vi.hoisted(() => ({
   getTodayPlan: vi.fn(),
+  playSoundEffect: vi.fn(),
   updatePlanTask: vi.fn(),
 }));
 
@@ -28,6 +29,10 @@ vi.mock('../miniprogram/shared/cloud-api', async (importOriginal) => {
     updatePlanTask: mocks.updatePlanTask,
   };
 });
+
+vi.mock('../miniprogram/shared/sound-effects', () => ({
+  playSoundEffect: mocks.playSoundEffect,
+}));
 
 let definition: PageDefinition;
 
@@ -116,6 +121,7 @@ async function flushPromises(): Promise<void> {
 beforeEach(async () => {
   vi.resetModules();
   mocks.getTodayPlan.mockReset();
+  mocks.playSoundEffect.mockReset();
   mocks.updatePlanTask.mockReset();
   vi.stubGlobal('Page', (candidate: PageDefinition) => {
     definition = candidate;
@@ -252,6 +258,22 @@ describe('Today page async loading', () => {
       stage: 'ready',
       plan: { id: 'refreshed-plan' },
     });
+  });
+
+  it('does not play a success sound when a task update fails', async () => {
+    mocks.getTodayPlan.mockResolvedValueOnce(plan('base-plan'));
+    mocks.updatePlanTask.mockRejectedValueOnce(new Error('network'));
+    const page = pageContext();
+
+    definition.onShow.call(page);
+    await flushPromises();
+    mocks.playSoundEffect.mockClear();
+
+    await definition.onStartTask.call(page, {
+      detail: { taskId: 'base-plan-task' },
+    });
+
+    expect(mocks.playSoundEffect).not.toHaveBeenCalledWith('success');
   });
 
   it('starts an onShow load when remaining task requests are failed and retryable', async () => {

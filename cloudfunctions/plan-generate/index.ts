@@ -48,6 +48,7 @@ const { buildDailyPlanMessages } = require('./prompt') as typeof import('./promp
 const { getDailyPlanProviderOverrides } = require('./provider-config') as typeof import('./provider-config');
 const { createTokenHubProvider } = require('../shared/tokenhub-provider') as typeof import('../shared/tokenhub-provider');
 const { createCloudbaseQuotaClaimer } = require('../shared/cloudbase-ai-quota') as typeof import('../shared/cloudbase-ai-quota');
+const { loadAiRuntimeConfiguration, toTokenHubEnvironment } = require('../shared/ai-runtime-config') as typeof import('../shared/ai-runtime-config');
 
 const app = cloudbase.init({ env: cloudbase.SYMBOL_CURRENT_ENV });
 const database = app.database();
@@ -90,11 +91,11 @@ function createRepository(): OwnedGoalRepository {
   };
 }
 
-exports.main = (event: unknown, context: unknown) =>
+exports.main = async (event: unknown, context: unknown) =>
   handlePlanGenerate(event, context, {
     getOpenid: (cloudContext) =>
       cloudbase.getCloudbaseContext(cloudContext).WX_OPENID,
-    env: process.env,
+    env: toTokenHubEnvironment(await loadAiRuntimeConfiguration(database as any, process.env)),
     createRepository,
     createProvider: (configuration) => {
       return createTokenHubProvider({
